@@ -1,0 +1,234 @@
+/********************************************************************************
+* 
+* McStas, neutron ray-tracing package
+*         Copyright (C) 1997-2008, All rights reserved
+*         Risoe National Laboratory, Roskilde, Denmark
+*         Institut Laue Langevin, Grenoble, France
+* 
+* This file was written by McStasScript, which is a 
+* python based McStas instrument generator written by 
+* Mads Bertelsen in 2019 while employed at the 
+* European Spallation Source Data Management and 
+* Software Centre
+* 
+* Instrument: TRex_choppers
+* 
+* %Identification
+* Written by: Bing Li
+* Date: 15:59:37 on September 17, 2026
+* Origin: ESS DMSC
+* %INSTRUMENT_SITE: Generated_instruments
+* 
+* !!Please write a short instrument description (1 line) here!!
+* 
+* %Description
+* Please write a longer instrument description here!
+* 
+* 
+* %Parameters
+* L0: [unit] wavelength in [Å] used to calculate the minimum and maximum wavelength for the source component by adding and subtracting a set wavelength
+* RRM: [unit] repetition rate multiplication
+* mode: [unit] HR for High Resolution, HF for High Flux
+* 
+* %Link 
+* 
+* %End 
+********************************************************************************/
+
+DEFINE INSTRUMENT TRex_choppers (
+L0 = 2.4, // wavelength in [Å] used to calculate the minimum and maximum wavelength for the source component by adding and subtracting a set wavelength
+int RRM = 18, // repetition rate multiplication
+string mode = "HF" // HR for High Resolution, HF for High Flux
+)
+
+DECLARE 
+%{
+double T_offset = 0.0017; // Time offset in [s] to shift to the center of long pulse
+double f = 14.0; // Source frequency in [Hz]
+
+
+    double tof_BW1, tof_BW2, tof_P1, tof_P2, tof_M1, tof_M2;
+
+    // characteristic wavelength
+    double v0;
+
+    // distances
+    double L_BW1 = 32;
+    double L_BW2 = 40;
+    double L_P1 = 107.95;
+    double L_P2 = 108.05;
+    double L_M1 = 161.995;
+    double L_M2 = 162.005;
+
+    
+
+
+    // BW1 Chopper
+    double f_BW1;
+    double delay_BW1; //time delay
+
+    double radius_BW1 = 0.35;
+    double delta_y_BW1 = -0.3075;
+
+    double slit_edges_BW1[2] = {-30.7, 30.7};
+    double n_edges_BW1 = 2;
+    double slit_width_BW1 = 0.06;
+    double slit_height_BW1 = 0.08;
+
+    // BW2 Chopper
+    double f_BW2;
+    double delay_BW2; //time delay
+
+    double radius_BW2 = 0.35;
+    double delta_y_BW2 = -0.3075;
+
+    double slit_edges_BW2[2] = {-31.65, 31.65};
+    double n_edges_BW2 = 2;
+    double slit_width_BW2 = 0.06;
+    double slit_height_BW2 = 0.08;
+
+
+    // P1 Chopper
+    double f_P1;
+    double delay_P1; //time delay
+    double phase_P1;// angular delay
+
+    double radius_P1 = 0.35;
+    double delta_y_P1 = 0.305;
+
+    double slit_edges_P1[8] = {-10, 10, 107.5, 142.5, 170, 190, 287.5, 322.5};
+    double n_edges_P1 = 8;
+    double slit_width_P1 = 0.06;
+    double slit_height_P1 = 0.08;
+
+
+
+    // P2 Chopper
+    double f_P2;
+    double delay_P2; //time delay
+    double phase_P2;// angular delay
+
+    double radius_P2 = 0.35;
+    double delta_y_P2 = 0.305;
+
+    double slit_edges_P2[8] = {-10, 10, 107.5, 142.5, 170, 190, 287.5, 322.5};
+    double n_edges_P2 = 8;
+    double slit_width_P2 = 0.06;
+    double slit_height_P2 = 0.08;
+
+
+
+    // M1 Chopper
+    double f_M1;
+    double delay_M1; //time delay
+    double phase_M1;// angular delay
+
+    double radius_M1 = 0.35;
+    double delta_y_M1 = 0.325;
+
+    double slit_edges_M1[4] = {178.25, 181.25, 362.8, 367.2};
+    double n_edges_M1 = 4;
+    double slit_width_M1 = 0.06;
+    double slit_height_M1 = 0.08;
+
+
+    // M2 Chopper
+    double f_M2;
+    double delay_M2; //time delay
+    double phase_M2;// angular delay
+
+    double radius_M2 = 0.35;
+    double delta_y_M2 = -0.325;
+
+    double slit_edges_M2[4] = {-1.25, 1.25, 182.8, 187.2};
+    double n_edges_M2 = 4;
+    double slit_width_M2 = 0.06;
+    double slit_height_M2 = 0.08;
+
+    
+%}
+
+INITIALIZE 
+%{
+// Start of initialize for generated TRex_choppers
+
+    // frequencies
+
+    f_BW1 = f;
+    f_BW2 = f_BW1;
+    f_P1 = RRM*f*0.75;
+    f_P2 = -f_P1;
+    f_M1 = RRM*f;
+    f_M2 = -f_M1;
+
+
+    // Resolution Settings
+    if (strcmp(mode, "HF") == 0){
+
+        for (int i = 0; i < 8; i++) {
+            slit_edges_P1[i] += 55;
+            slit_edges_P2[i] += 55;
+        }
+        for (int i = 0; i < 4; i++) {
+            slit_edges_M1[i] += 175;
+            slit_edges_M2[i] += 175;
+        }
+    } else {
+        printf("Need valid resolution option, 'HR' or 'HF'");
+    }
+
+
+    // characteristic wavelength 
+
+    v0 = 2*PI*K2V/L0; // speed center neutron
+
+
+    // time of flight and chopper phases
+    tof_BW1 = T_offset + L_BW1/v0;
+    tof_BW2 = T_offset + L_BW2/v0;
+    tof_P1 = T_offset + L_P1/v0;
+    tof_P2 = T_offset + L_P2/v0;
+    tof_M1 = T_offset + L_M1/v0;
+    tof_M2 = T_offset + L_M2/v0;
+
+    //time delay
+    delay_BW1 = tof_BW1; 
+    delay_BW2 = tof_BW2; 
+    delay_P1 = tof_P1; 
+    delay_P2 = tof_P2;
+    delay_M1 = tof_M1;
+    delay_M2 = tof_M2;
+
+
+
+    
+%}
+
+TRACE 
+COMPONENT Source = Source_div(
+ xwidth = 1.75, yheight = 1.75,
+ focus_aw = 0.001, focus_ah = 0.001,
+ E0 = 5, dE = 0.1)
+AT (0.8166097806955753, 0.0, 161.995) ABSOLUTE
+
+COMPONENT MonochromatingChopper2 = NXdisk_chopper(
+ slit_edges = slit_edges_M2, n_edges = n_edges_M2,
+ radius = 0.35, yheight = 0.08,
+ xwidth = 0.0, nu = f_M2,
+ delay = delay_M2, beam_angle = 0,
+ zero_angle = 0, abs_out = 0,
+ verbose = 1)
+AT (0.8166097806955753, 0.0, 162.005) ABSOLUTE
+ROTATED (0, 0.430122381481144, 0) ABSOLUTE
+
+COMPONENT PSD = PSD_monitor(
+ nx = 300, ny = 300,
+ xwidth = 1.75, yheight = 1.75)
+AT (0, 0, 0.5) RELATIVE Source
+
+FINALLY 
+%{
+// Start of finally for generated TRex_choppers
+%}
+
+END

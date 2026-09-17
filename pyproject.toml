@@ -13,15 +13,21 @@ requires = ["hatchling"]
 channels = ["conda-forge"]
 platforms = ["osx-arm64"]
 
+# [tool.pixi.activation.env]
+# conda-forge's clang/ld toolchain can't link against very new macOS SDKs
+# (unparsable .tbd stub format), causing mcstas C-code compiles to fail
+# with "symbol not found" linker errors. Use the system clang instead.
+# MCSTAS_CC_OVERRIDE = "/usr/bin/clang"
+
 [tool.pixi.pypi-dependencies]
 mctrex = { path = ".", editable = true }
 
 [tool.pixi.tasks]
 
 [tool.pixi.dependencies]
-mcstas = ">=3.7.25,<4"
 mcstasscript = ">=0.0.91,<0.0.92"
 mcstastox = ">=0.0.12,<0.0.13"
 numpy = ">=2.5.2,<3"
 matplotlib = ">=3.11.1,<4"
 pythreejs = ">=2.4.2,<3"
+mcstas = ">=3.8.5,<4"
