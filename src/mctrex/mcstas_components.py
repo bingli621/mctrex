@@ -7,6 +7,16 @@ from dataclasses import dataclass
 from typing import Any
 
 
+def add_components_to(instrument, components):
+    """Add every component in `components` to `instrument`.
+
+    Returns a dict mapping each component's name to the McStasScript
+    component `add_to` created, so callers can keep operating on them
+    (e.g. `.set_comment(...)`) after the batch add.
+    """
+    return {c.name: c.add_to(instrument) for c in components}
+
+
 @dataclass(kw_only=True)
 class McStasComponent:
     """Base for a McStasScript component: name + placement."""
@@ -34,14 +44,27 @@ class McStasComponent:
         return comp
 
 
-def add_components_to(instrument, components):
-    """Add every component in `components` to `instrument`.
+@dataclass(kw_only=True)
+class Progress_bar(McStasComponent):
+    percent: float = 10
 
-    Returns a dict mapping each component's name to the McStasScript
-    component `add_to` created, so callers can keep operating on them
-    (e.g. `.set_comment(...)`) after the batch add.
-    """
-    return {c.name: c.add_to(instrument) for c in components}
+
+@dataclass(kw_only=True)
+class ESS_butterfly(McStasComponent):
+    """ESS butterfly moderator source."""
+
+    sector: str  # quoted sector letter, e.g. '"W"'
+    beamline: int
+
+    acc_power: float  # [MW]
+    yheight: float  # [m], moderator height, 0.03 to 0.06
+    cold_frac: Any  # fraction of events emitted from the cold moderator
+    dist: float  # [m], distance to focusing rectangle
+    focus_xw: float  # [m], focusing rectangle width
+    focus_yh: float  # [m], focusing rectangle height
+    n_pulses: float = 1
+    Lmin: float = 0.1  # [Angstrom]
+    Lmax: float = 10.0  # [Angstrom]
 
 
 @dataclass(kw_only=True)
@@ -66,23 +89,6 @@ class Guide_gravity(McStasComponent):
 @dataclass(kw_only=True)
 class Arm(McStasComponent):
     """A reference point/frame with no parameters of its own."""
-
-
-@dataclass(kw_only=True)
-class ESS_butterfly(McStasComponent):
-    """ESS butterfly moderator source."""
-
-    sector: str  # quoted sector letter, e.g. '"W"'
-    beamline: int
-    Lmin: float  # [Angstrom]
-    Lmax: float  # [Angstrom]
-    acc_power: float  # [MW]
-    yheight: float  # [m], moderator height, 0.03 to 0.06
-    cold_frac: Any  # fraction of events emitted from the cold moderator
-    dist: float  # [m], distance to focusing rectangle
-    focus_xw: float  # [m], focusing rectangle width
-    focus_yh: float  # [m], focusing rectangle height
-    n_pulses: float = 1
 
 
 @dataclass(kw_only=True)
