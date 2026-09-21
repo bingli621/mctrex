@@ -6,15 +6,27 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
 
-def add_components_to(instrument, components):
-    """Add every component in `components` to `instrument`.
 
-    Returns a dict mapping each component's name to the McStasScript
-    component `add_to` created, so callers can keep operating on them
-    (e.g. `.set_comment(...)`) after the batch add.
-    """
-    return {c.name: c.add_to(instrument) for c in components}
+def add_components_to(instrument, component_dict):
+    """Add every component in `components` to `instrument`."""
+
+    for component in component_dict.values():
+        component.add_to(instrument)
+    return instrument
+
+
+def gap(downstream, upstream):
+    """Free space between `upstream`'s exit and `downstream`'s entrance."""
+
+    return downstream.z1 - upstream.z2
+
+
+def curve_rot_y(upstream, downstream, gap, curve_radius=12_000):
+    """Midpoint-rule tilt increment [deg] from `upstream` to `downstream` on the `curve_radius` arc."""
+
+    return np.degrees(((upstream.l + downstream.l) / 2 + gap) / curve_radius)
 
 
 @dataclass(kw_only=True)
@@ -90,6 +102,10 @@ class Guide_gravity(McStasComponent):
 class Arm(McStasComponent):
     """A reference point/frame with no parameters of its own."""
 
+    z1: float = 0  # z position of entrance [m]
+    z2: float = 0  # z position of exit [m]
+    _not_params = McStasComponent._not_params + ("z1", "z2")
+
 
 @dataclass(kw_only=True)
 class Pol_bender(McStasComponent):
@@ -98,7 +114,7 @@ class Pol_bender(McStasComponent):
     xwidth: float  # [m], width at the guide entry
     yheight: float  # [m], height at the guide entry
     length: float  # [m], length of guide along center
-    radius: float  # [m], radius of curvature (+ curves left/+x)
+    radius: float  # [m], radius of curvature (+ curves left)
     nslit: int
     d: float  # [m], width of spacers
     endFlat: int
@@ -113,3 +129,4 @@ class Pol_bender(McStasComponent):
     rLeftDownPar: str
     rRightUpPar: str
     rRightDownPar: str
+    G: float = 9.8  # [m/s^2]

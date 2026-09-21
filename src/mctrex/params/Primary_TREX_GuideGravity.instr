@@ -1,0 +1,992 @@
+/*******************************************************************************
+* T-Rex @ ESS
+* Ver. 2026-09-02
+*
+* authors: Augustin Loesch, Lukas Bauer, Christian Franz
+* Changes:
+* 2024-10-28:	Removed phase_FAN variable
+* 2025-01-21: 	Added slits after gaps to avoid rogue neutrons
+*		Added bender variable
+* 2025-02-28:	Added honeycomb collimators (not correct parameters for now)
+* 2026-01-23:   Removed all Fan related variables from code (MA)
+* 2026-04-14:   Restricted RRM variable to certain values only fill all time frames + Changed RRM to int. (MA)
+* 2026-05-12:   Changed MultiDisk to DiskChopper for the P- and M-choppers. (MA)
+* 2026-07-24:   Added the aluminium windows from the Table of Optics (v3.0, CHESS 1535031). PowderN with p_interact = 0.01. (MA)
+* 2026-07-29:   Added CCR tails around the sample position (MA)
+* 2026-07-30:   Added Radial Collimator to T-REX. Matching the drawings (MA)
+* 2026-09-02:   Geometry compared against Table of Optics. Changed to Guide_gravity and kept the 12km curvature radius. (MA)
+* 2026-09-03:   NBOA asymmetric taper. The -x wall of sections 1-4 is FIXED at
+*               -47.000 mm in the design OFF meshes; all horizontal narrowing
+*               (90 -> 60 mm) is on the +x (cold moderator) wall. The guide
+*               centre-line is therefore a straight line tilted by -0.213350 deg
+*               = half the 0.426695 deg ToO horizontal taper angle, running from
+*               -2.0295 mm at 1895.927 mm to -16.8711 mm at 5881.65 mm.
+*               Sections 1-4 and Al_window_01 now hang off arm_NBOA; Guide_5
+*               removes the tilt where the -x wall releases at 5.927 m.
+*               L_Smon corrected to 163.170 m to follow the sample_monitor move
+*               to the Guide_50a exit. (MA)
+* 2026-09-05:   Curve rotations corrected on three counts (MA):
+*                 (a) GAPS - each joint rotated by the preceding GUIDE length
+*                     only, so 209.8 mm of arc (the 2-30 mm inter-section gaps)
+*                     carried no rotation. Arms are now the true entrance-to-
+*                     entrance path distance.
+*                 (b) MIDPOINT RULE - each segment travelled its whole length at
+*                     the angle it had at its START, while the true arc averages
+*                     half a segment's turn more. Over 25 segments that cost
+*                     sum(L^2)/2R = 13.7 mm of horizontal displacement. Each
+*                     segment is now oriented at its own MIDPOINT angle:
+*                     arm = d + (L_this - L_prev)/2, with Guide_5 carrying an
+*                     extra L_5/2R at the curve entrance.
+*                 (c) CLOSURE - the final joint (Guide_30) is set so the TOTAL
+*                     bend is exactly (96.000-5.916)/12000 rad = 0.430119 deg,
+*                     so the straight 67 m downstream leaves at the right angle.
+*               Axis now tracks the OFF design model to under 1 mm over 163 m
+*               (was 15.3 mm).
+* 2026-09-04:   Added the 15 remaining aluminium windows, matching the July
+*               OFF-file model (Al_window_02..14, 17, 18): same z positions,
+*               thicknesses and apertures. Note July has no window at the ToO
+*               41977/41998 pair, so neither does this file.
+* 2026-09-08:   ALL 16 aluminium windows REMOVED for a like-for-like comparison
+*               against the original OFF-file model, which has none. Al_window_01
+*               is now an Arm so the arm_NBOA anchoring is untouched; the CCR
+*               PowderN at the sample is unaffected. acc_power stays at 2 MW.
+*               Also: f_M2 = f_M1, and the M-chopper nu values written longhand
+*               (-f*RRM*0.5 and +f*RRM) so the pair counter-rotates. (MA)
+*               All RELATIVE PREVIOUS references were first made explicit so
+*               that inserting components cannot shift the chain; guide and
+*               chopper positions verified unchanged to < 1 nm. (MA)
+*
+* N.B: McStas manual mentions that the use of 'GROUP'/'WHEN'/'EXTEND' for the same component leads to odd behavior.
+* For that reason, only one DiskChopper is used, with the slit size changing size, and two openings at 0/180.
+* Delay in time can be analytically calculated on the instrument IRL when swapping openings.
+*******************************************************************************/
+
+DEFINE INSTRUMENT TRex(	L0 = 1.16764865,	// wavelength in Angstrom used to calculate the minimum and maximum wavelength for the source component by adding and substracting a set wavelength
+			d_Li = 0.845,		// wavelength band to be simulated
+			int RRM = 22, 		// repetition rate multiplication - To fill all the time frames of ESS with the same neutrons you can go from 2 to 22 in steps of 2.
+			int mod_type = 0, 	// this variable determines which moderator type is used {0: Thermal moderator, 1: Bispectral moderator, 2: Cold moderator}
+			int bender = 0,		// bender out = 0, bender in = 1
+			sample_rot = 0,	// sample rotation
+                        string r = "HF",
+			b_rot = -0.397881,		// rotation of the cold neutron bender = -atan(0.05/7.2), full deflection since endFlat=0
+			coll=0)
+
+
+DECLARE
+%{
+double frac; // used in the Source component, Defines the statistical fraction of events emitted from the cold part of the moderator, the value is determined later in the file depending in the moderator type that was chosen
+
+double lamb_1, lamb_2, d_lam, E_2, E_1, Li;
+
+double tof_BW1, tof_BW2, tof_M1, tof_M2, tof_P1, tof_P2;
+
+double tof_M1_min, tof_M2_max, tof_P1_min, tof_P2_max; //  used to calculate monitor options for monitors after the choppers
+
+double T_offset = 1700.0*1e-6;
+double f = 14.0;
+//double ang_c_t;
+
+// characteristic wavelength
+double bw, stepwl;
+double lf_max; 
+double vi, v1, v2, v0, e1, e2; 
+
+
+// distances
+double L_SG = 2.;
+
+double L_BW1 = 31.96404;//32;
+double L_BW2 = 39.95504;//40;
+
+double L_P1 = 107.95;
+double L_P2 = 108.05;
+
+double L_M1 = 161.995;
+double L_M2 = 162.005;
+
+double L_S = 163.8;       
+double L_D = 166.8;	      
+double L_SD = 3;              
+double L_BS = 166.8 + 0.7;
+
+// Monitor positions (geometric, taken from the guide chain) - used ONLY to
+// frame monitor time windows. These are NOT chopper phasing distances, and
+// nothing physical depends on them: Monitor_nD time limits are a histogram
+// range, not an optical element. Update if the guide geometry moves.
+double L_BW2mon = 41.984942; // BW2_monitor_ToF, 13.7 mm past the Guide_15B exit
+double L_Pmon   = 111.098;   // P_monitor_ToF_cm2, exit of Guide_33
+double L_Smon   = 163.800;   // sample monitor sits AT Sample_pos
+
+// Chopper parameters
+    double P_slit, M_slit, n_slit_P, n_slit_M;
+    
+
+    // BW1 Chopper
+    double f_BW1;
+    double radius_BW1;
+    char theta_pos_BW1[256] = "0";
+    char theta_width_BW1[256] = "61.4";
+    double delta_y_BW1;
+    double delay_BW1; //time delay
+    double nslits_BW1;
+    
+    // BW2 Chopper
+    double f_BW2;
+    double radius_BW2;
+    char theta_pos_BW2[256] = "0";
+    char theta_width_BW2[256] = "63.3";
+    double delta_y_BW2;
+    double delay_BW2; //time delay
+    double nslits_BW2;
+    
+    // P1 Chopper
+    double f_P1;
+    double delay_P1; //time delay
+    double phase_P1;// angular delay
+    
+    // P2 Chopper
+    double f_P2;
+    double delay_P2; //time delay
+    double phase_P2;// angular delay
+
+    
+    // M1 Chopper
+    double f_M1;
+    double delay_M1; //time delay
+    double phase_M1;// angular delay
+    
+    // M2 Chopper
+    double f_M2;
+    double delay_M2; //time delay
+    double phase_M2;// angular delay
+
+
+// tof for focusing at detector
+double tof_D_1;
+double tof_D_2;
+// detector options
+char   banana_options[1024], spherical_options[1024], spherical_options2[1024], square_options[1024], square_options2[1024], energy_options[1024];
+
+// monitor definitions
+int lbin;
+int ebin;
+char setSMl[256], setFO[256], setSMt[256],setSMt_M[256],setSMt_P[256], setSMlhdiv[256], setSMlvdiv[256], setBW1[256], setBW2[256], setPL[256], setP[256], setML[256], setM[256], setSL[256], setS[256], setD[256], setBS[256], setDL[256], set6m[256];
+%}
+
+INITIALIZE
+%{
+
+// Source type
+switch (mod_type)
+	{
+	case 0: {frac = 0.0; break;} // Thermal moderator
+	case 1: {frac = 0.5; break;} // Bispectral moderator
+	case 2: {frac = 1.0; break;} // Cold moderator
+	}
+	
+// frequencies
+	f_BW1 = f;
+	f_BW2 = f_BW1;
+	f_P1 = RRM*f*0.75;
+	f_P2 = -f_P1;
+	f_M1 = RRM*f;
+	f_M2 = f_M1;
+
+
+// Resolution Setings
+if (strcmp(r,"HR") == 0){
+	P_slit = 20;
+	M_slit = 2.5;
+} else if (strcmp(r,"HF") == 0){
+	P_slit = 35;
+	M_slit = 4.4;
+} else {
+	printf("\n Need valid resolution option, 'HR' or 'HF'\n");
+}
+
+
+// RRM Value check
+if (RRM < 4 || RRM > 24 || RRM % 2 != 0) {
+    printf("\n-------------------------------\n");
+    printf("\nERROR: RRM = %i is not valid!\n", RRM);
+    printf("RRM must be an even number between 4 and 24 in steps of 2\n");
+    printf("\n-------------------------------\n");
+    exit(1);
+}
+
+
+	d_lam = 3956.0 / (f * RRM * 162);
+// characteristic wavelength 
+	stepwl = K2V*2*PI/(L_M1+L_M2)*2.0/fabs(f_M1);
+	printf("Wavelength Step: %g \n", stepwl);
+	lf_max = K2V*2*PI*(1+(L_M2-L_S)/L_M2)/L_SD/f_M2;
+	v0 = 2*PI*K2V/L0;       // speed center neutron
+
+// Source parameters
+	vi = 2*PI*K2V/Li;
+	//Ei = VS2E*vi*vi;
+
+if (L0>0.90) {
+	lamb_1 = L0-(d_Li);
+} else {
+	lamb_1 = 0.01;
+}
+
+	printf("lamb_1: %g \n", lamb_1);
+	lamb_2 = L0+(d_Li);
+	printf("lamb_2: %g \n", lamb_2);
+	v1 = 2*PI*K2V/lamb_1;   // slowest neutron
+	v2 = 2*PI*K2V/lamb_2;   // fastest neutron
+	E_1 = 81.81 / (lamb_1*lamb_1);
+	E_2 = 81.81/(lamb_2 * lamb_2);
+
+// time of flight and chopper phases
+	tof_BW1 = T_offset + L_BW1/v0;
+	tof_BW2 = T_offset + L_BW2/v0;
+	
+	tof_M1 = T_offset + L_M1/v0;
+	tof_M2 = T_offset + L_M2/v0;
+
+
+	tof_P1 = T_offset + L_P1/v0;
+	tof_P2 = T_offset + L_P2/v0;
+
+
+printf("\ntof to M1: %g, M2: %g, P1: %g, P2: %g \n", tof_M1, tof_M2, tof_P1, tof_P2);  
+
+// Phasing distances actually in use - print so that a geometry change that
+// desynchronises them from the component positions is visible in the log.
+printf("\n--- chopper phasing distances (m) ---\n");
+printf("L_BW1 = %10.6f   L_BW2 = %10.6f\n", L_BW1, L_BW2);
+printf("L_P1  = %10.6f   L_P2  = %10.6f\n", L_P1,  L_P2);
+printf("L_M1  = %10.6f   L_M2  = %10.6f\n", L_M1,  L_M2);
+printf("L_S   = %10.6f   L_D   = %10.6f\n", L_S,   L_D);
+printf("--- monitor framing distances (m) ---\n");
+printf("L_BW2mon = %10.6f  L_Pmon = %10.6f  L_Smon = %10.6f\n", L_BW2mon, L_Pmon, L_Smon);
+printf("-------------------------------------\n\n");
+
+
+// Chopper parameters
+
+    // BW1 Chopper
+    radius_BW1 = 0.35;
+    delta_y_BW1 = -0.3075;
+    delay_BW1 = tof_BW1; //time delay
+    nslits_BW1 = 1;
+    
+    // BW2 Chopper
+    radius_BW2 = 0.35;
+    delta_y_BW2 = delta_y_BW1;
+    delay_BW2 = tof_BW2; //time delay
+    nslits_BW2 = 1;
+
+     
+// Detector parameters
+tof_D_1 = T_offset + L_D/(K2V*2*PI/lamb_1);
+tof_D_2 = T_offset + tof_D_1 + 0.072 + 0.00289;
+lbin = round((lamb_2-lamb_1)/0.002);    
+sprintf(spherical_options, "sphere, theta limits = [-36 144] bins=288, phi limits = [-5 5] bins=66, time limits=[%g %g]bins=[%li]", T_offset + L_D/v1, T_offset + L_D/v2, lbin*20);
+sprintf(spherical_options2, "square, time limits=[%g %g]bins=[%li]", 0.03, 2, lbin*20);
+sprintf(banana_options, "banana, theta limits = [-36 144] bins=288, phi = [-25 15] bins = 66, lambda limits=[%g %g], bins=%i", lamb_1-0.2, lamb_2+0.2, lbin*2);
+sprintf(square_options, "mantid banana, theta limits=[-36 144] bins=288, y bins=136, neutron pixel min = 0 t, list all neutrons");
+sprintf(square_options2, "mantid banana, theta limits=[-36 144] bins=288, phi limits=[-25 15] bins=136, neutron pixel min = 0 t, list all neutrons");
+
+
+
+// Monitors
+lbin = round((lamb_2-lamb_1)/0.002);    // number of bins for TOF monitors
+printf("\n\n \t nbin: %i \n\n", lbin);
+/*
+sprintf(setBW1, "time limits [%g %g] bins = [%i]", T_offset + L_BW1/v0, T_offset + L_BW1/v0, lbin);
+sprintf(setBW2, "time limits [%g %g] bins = [%i]", T_offset + L_BW2/v0, T_offset + L_BW2/v0, lbin); //Changed T_offset + to what's written here
+sprintf(setP, "time limits [%g %g] bins = [%i]",  (T_offset + L_P2/v0),  (T_offset + L_P2/v0),  lbin*5);
+sprintf(setPL, "lambda limits=[%g %g], bins=%i", lamb_1-0.2, lamb_2+0.2, lbin);
+
+sprintf(setM, "time limits [%g %g] bins = [%i]",   (T_offset + L_M2/v0),  1.02*(T_offset + L_M2/v0),  lbin*20);
+sprintf(setML, "lambda limits=[%g %g], bins=%i", lamb_1-0.2, lamb_2+0.2, lbin);
+sprintf(setS, "time limits [%g %g] bins = [%i]",   (T_offset + L_S/v0),   1.02*(T_offset + L_S/v0),   lbin*20); 
+sprintf(setD, "time limits [%g %g] bins = [%i]",   (T_offset + L_D/v0),   1.02*(T_offset + L_D/v0),   lbin*20); 
+sprintf(setBS, "time limits [%g %g] bins = [%i]",   L_BS/v,   1.02*L_BS/v,   lbin*20); 
+sprintf(setSL, "lambda limits=[%g %g], bins=%i", lamb_1-0.2, lamb_2+0.2, lbin);//was lbin, looked good. Gonna try to halve it!
+sprintf(setDL, "lambda limits=[%g %g], bins=%i", lamb_1-0.2, lamb_2+0.2, lbin);//was lbin, looked good. Gonna try to halve it!
+*/
+
+// NOTE: the *_mon distances below are the monitors' true positions, not the
+// chopper phasing distances. Using L_P2/L_S here framed the histograms for
+// positions the monitors are not at (3.05 m and 1.71 m out respectively).
+sprintf(setBW1, "time limits [%g %g] bins = [%i]", T_offset + L_BW1/v1, T_offset + L_BW1/v2, lbin);
+sprintf(setBW2, "time limits [%g %g] bins = [%i]", T_offset + L_BW2mon/v1, T_offset + L_BW2mon/v2, lbin);
+sprintf(setP, "time limits [%g %g] bins = [%i]",   T_offset + L_Pmon/v1,  T_offset + L_Pmon/v2,  lbin*10);
+sprintf(set6m, "time limits [%g %g] bins = [%i]",   T_offset + 6/v1,  T_offset + 6/v2,  lbin*10);
+
+sprintf(setM, "time limits [%g %g] bins = [%i]",   T_offset + L_M2/v1,  T_offset + L_M2/v2,  lbin*20);
+sprintf(setS, "time limits [%g %g] bins = [%i]",   T_offset + L_Smon/v1,   T_offset + L_Smon/v2,   lbin*50);
+
+
+tof_M1_min = T_offset+L_M1/v1;
+tof_M2_max = T_offset+L_M2/v2;
+
+tof_P1_min = T_offset+L_P1/v1;
+tof_P2_max = T_offset+L_P2/v2;
+
+sprintf(setSMt_M, "time limits=[%g %g], bins=%i", tof_M1_min, tof_M2_max, 50);
+sprintf(setSMt_P, "time limits=[%g %g], bins=%i", tof_P1_min, tof_P2_max, 100);
+sprintf(setSMlhdiv, "hdiv limits [-2.5:2.5] bins = 200, lambda limits=[%g %g], bins=%i", lamb_1, lamb_2, lbin);
+sprintf(setSMlvdiv, "vdiv limits [-2.5:2.5] bins = 200, lambda limits=[%g %g], bins=%i", lamb_1, lamb_2, lbin);
+
+
+
+%}
+
+TRACE
+
+/* Origin ------------------------------------------------------------------------------------------------------------------------------------------------------ */
+/*--------------------------------------------------------------------*/
+
+COMPONENT origin = Progress_bar(percent=10)
+    AT (0, 0, 0) ABSOLUTE
+
+/* ESS source -------------------------------------------------------------- */
+
+COMPONENT ESS_source= ESS_butterfly(
+    sector = "W", beamline = 7,
+    acc_power = 2,
+    Lmin = lamb_1, Lmax = lamb_2,
+    //Lmin = 0.5, Lmax=6,
+    cold_frac = frac, yheight = 0.03,
+    focus_xw = 0.095, focus_yh = 0.035, dist=2,
+    n_pulses = 1
+    //tfocus_dist=32 , tfocus_time=tof_BW1 , tfocus_width=0.01218
+    )
+AT (0, 0, 0) RELATIVE ABSOLUTE
+
+
+/* Diagnostic used to establish the cold/thermal moderator face positions
+   (cold X0 = +32.4 mm, thermal X0 = -34.7 mm at z = 0.5 m -> cold is at +x,
+   which fixes the bender radius/b_rot signs below). Safe to delete.          */
+COMPONENT source_face_check = Monitor_nD(
+    options="x limits [-0.15:0.15] bins=301, y limits [-0.05:0.05] bins=101",
+    xwidth = 0.3, yheight = 0.1,
+    filename = "source_face_check.dat",
+    restore_neutron=1)
+AT (0, 0, 0.5) RELATIVE ESS_source
+ROTATED (0, 0, 0) RELATIVE ESS_source
+
+/*----------insert--------------------------------------------------------------------------------------------*/
+
+// Note: -0.002 because guide is asymmetric here ((47mm-43mm)/2
+
+/* NBOA section */
+/* --- Aluminium window 01  |  ToO row 13 (Window+Gap) - NBPI entrance window
+         z = 1.890642 m (centre), thickness = 1.000 mm
+         component aperture 100.0 x 40.0 mm (oversized w.r.t. the beam envelope) --- */
+/*   NOTE: ASSUMED 1 mm thick (row is Window+Gap combined) */
+/* =============================================================================
+   NBOA - ASYMMETRIC TAPER
+
+   The -x wall of the NBOA is FIXED at -47.000 mm; all of the horizontal
+   narrowing (90 -> 60 mm) is taken out of the +x wall, which is the cold
+   moderator side. This is the bispectral extraction geometry: the view of the
+   thermal face is held constant while the cold-side acceptance is trimmed.
+
+   Consequence: the guide centre-line is NOT the nominal beam axis. It is a
+   straight line from -2.0295 mm at 1895.927 mm to -16.8711 mm at 5881.65 mm,
+   tilted by -0.213350 deg = half the 0.426695 deg ToO horizontal taper angle.
+
+   Guide_gravity is symmetric about its own axis, but two straight walls are
+   reproduced EXACTLY by a symmetric guide placed on their bisector. The tilt is
+   identical for all four sections, so one arm carries the whole NBOA and the
+   sections hang off it with plain z offsets.
+
+   The -x wall releases at 5.927 m; from Guide_5 onward the guide is symmetric
+   about its own axis again, so the tilt is removed there.
+   ============================================================================= */
+
+COMPONENT arm_NBOA = Arm()
+AT (-0.0020295, 0, 1.895927) RELATIVE ABSOLUTE
+ROTATED (0, -0.213350, 0) RELATIVE ABSOLUTE
+
+/* Al_window_01 removed - all 16 aluminium windows are out of this build.
+   An Arm is left in its place so nothing anchored downstream shifts.        */
+COMPONENT Al_window_01 = Arm()
+AT (0, 0, -5.285e-3) RELATIVE arm_NBOA
+ROTATED (0, 0.000000000, 0) RELATIVE ABSOLUTE
+
+COMPONENT Guide_1 = Guide_gravity(
+    w1=0.089955, h1=0.029992, w2=0.082455, h2=0.034937,
+    l=0.999400, mleft=1.5, mright=1.5, mtop=4, mbottom=4,
+    G=0)
+AT (0, 0, 0) RELATIVE arm_NBOA                 /* -> 1895.927 mm */
+ROTATED (0, 0, 0) RELATIVE arm_NBOA
+
+COMPONENT Guide_2 = Guide_gravity(
+    w1=0.082447, h1=0.034941, w2=0.074948, h2=0.039160,
+    l=0.999200, mleft=1.5, mright=1.5, mtop=4, mbottom=4,
+    G=0)
+AT (0, 0, 1.000400) RELATIVE arm_NBOA          /* 1.0 mm gap after Guide_1 */
+ROTATED (0, 0, 0) RELATIVE arm_NBOA
+
+COMPONENT Guide_3 = Guide_gravity(
+    w1=0.074939, h1=0.039164, w2=0.063838, h2=0.044511,
+    l=1.479200, mleft=1.5, mright=1.5, mtop=4, mbottom=4,
+    G=0)
+AT (0, 0, 2.000800) RELATIVE arm_NBOA          /* 1.2 mm gap after Guide_2 */
+ROTATED (0, 0, 0) RELATIVE arm_NBOA
+
+
+/* =============================================================================
+   BBGOA SECTION 4 - EXCHANGE ASSEMBLY  (4a thermal  <->  4b cold + bender)
+
+   4a and 4b occupy the same slot in the BBGOA and share the same exit plane at
+   5881.65 mm; they are alternative optics that swap in and out, NOT parallel
+   beamlines. Both are anchored to Guide_3 so the two WHEN branches are fully
+   independent of each other.
+
+   Ref: ToO v3.0
+   ============================================================================= */
+
+/* ---- 4a: thermal guide  |  5400.65 -> 5881.65 mm  |  481 mm  |  Aluminium --- */
+COMPONENT Guide_4a = Guide_gravity(
+    w1=0.063838, h1=0.044594, w2=0.060256, h2=0.046152,
+    l=0.481000, mleft=1.5, mright=1.5, mtop=3.5, mbottom=3.5,
+    G=0)
+WHEN (bender==0)
+AT (0, 0, 3.504723) RELATIVE arm_NBOA          /* -> 5400.65 mm */
+ROTATED (0, 0, 0) RELATIVE arm_NBOA
+
+
+/* ---- 4b: cold guide + bender  |  5450.65 -> 5881.65 mm  |  431 mm  |  Aluminium
+
+   The bender is a 50 mm solid-state Si stack at the UPSTREAM end of 4b
+   (5450.65 -> 5500.65 mm), followed by 381 mm of tapered cold guide.
+   Every Si channel is 0.15 mm wide, sputtered on every side with Ni/Ti m=4,
+   blade radius of curvature 7.2 m -> deflection = atan(0.05/7.2) = 0.3979 deg.
+   The entrance is oriented toward the cold moderator; the exit tangent lies on
+   the nominal guide axis, so nothing downstream of 4b is rotated.
+
+   NOTE: radius > 0 curves left (+x). Confirmed correct: the cold moderator
+   face sits at +x (see source_face_check above).                              */
+
+COMPONENT bender = Pol_bender(
+    xwidth = 0.063840, yheight = 0.044572,
+    length = 0.050, radius = 7.2,
+    nslit = 426, d = 1e-6, endFlat = 0, drawOption = 2,
+    G = 0,
+    rTopUpPar     = {0.99, 0.0219, 3.02, 4.0, 0.003},
+    rTopDownPar   = {0.99, 0.0219, 3.02, 4.0, 0.003},
+    rBotUpPar     = {0.99, 0.0219, 3.02, 4.0, 0.003},
+    rBotDownPar   = {0.99, 0.0219, 3.02, 4.0, 0.003},
+    rLeftUpPar    = {0.99, 0.0219, 3.02, 4.0, 0.003},
+    rLeftDownPar  = {0.99, 0.0219, 3.02, 4.0, 0.003},
+    rRightUpPar   = {0.99, 0.0219, 3.02, 4.0, 0.003},
+    rRightDownPar = {0.99, 0.0219, 3.02, 4.0, 0.003})
+WHEN (bender==1)
+AT (0, 0, 3.504723) RELATIVE arm_NBOA          /* -> 5400.65 mm, the try10 slot */
+ROTATED (0, b_rot, 0) RELATIVE arm_NBOA
+
+/* ToO section 4b: 5450.65 -> 5881.65 mm, 431 mm - the full section */
+COMPONENT Guide_4b = Guide_gravity(
+    w1=0.063466, h1=0.044759, w2=0.060256, h2=0.046152,
+    l=0.431000, mleft=1.5, mright=1.5, mtop=3.5, mbottom=3.5,
+    G=0)
+WHEN (bender==1)
+AT (0, 0, 3.554723) RELATIVE arm_NBOA          /* -> 5450.65 mm */
+ROTATED (0, 0, 0) RELATIVE arm_NBOA
+
+
+/* Common exit plane of the section-4 assembly at 5881.65 mm.
+   Anchored to Guide_3 rather than Guide_4a so it is branch-independent:
+   4a and 4b share this plane, and 4b's exit tangent is on-axis.                */
+COMPONENT arm_after_bender = Arm()
+AT (0, 0, 3.985723) RELATIVE arm_NBOA          /* -> 5881.65 mm */
+ROTATED (0, 0, 0) RELATIVE arm_NBOA
+
+
+COMPONENT Guide_5 = Guide_gravity(
+    w1=0.060000, h1=0.046261, w2=0.060000, h2=0.053982,
+    l=2.762500, mleft=1.5, mright=1.5, mtop=3.5, mbottom=3.5,
+    G=0)
+AT (0, 0, 34.35e-3) RELATIVE arm_after_bender
+ROTATED (0, 0.213350 + 0.006595, 0) RELATIVE arm_after_bender   /* -x wall releases at 5.927 m */
+
+//12km radius of curvature starts from this section of T-REX!
+COMPONENT Guide_6 = Guide_gravity(
+    w1=0.060000, h1=0.054015, w2=0.060000, h2=0.060228,
+    l=2.762500, mleft=1.5, mright=1.5, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 2.762500 + 13e-3) RELATIVE Guide_5 
+ROTATED (0, (2.775500/12000)*RAD2DEG, 0) RELATIVE Guide_5
+
+COMPONENT Guide_7 = Guide_gravity(
+    w1=0.060000, h1=0.060255, w2=0.060000, h2=0.067416,
+    l=4.000000, mleft=1.5, mright=1.5, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 2.762500+13e-3) RELATIVE Guide_6 
+ROTATED (0, (3.394250/12000)*RAD2DEG, 0) RELATIVE Guide_6
+
+COMPONENT Guide_8 = Guide_gravity(
+    w1=0.060000, h1=0.067419, w2=0.060000, h2=0.072976,
+    l=4.000000, mleft=1.5, mright=1.5, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 4+2e-3) RELATIVE Guide_7 
+ROTATED (0, (4.002000/12000)*RAD2DEG, 0) RELATIVE Guide_7
+
+COMPONENT Guide_9 = Guide_gravity(
+    w1=0.060000, h1=0.072979, w2=0.060000, h2=0.076525,
+    l=3.216700, mleft=1.5, mright=1.5, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 4+2e-3) RELATIVE Guide_8 
+ROTATED (0, (3.610350/12000)*RAD2DEG, 0) RELATIVE Guide_8
+
+COMPONENT Guide_10 = Guide_gravity(
+    w1=0.060000, h1=0.076538, w2=0.060000, h2=0.078024,
+    l=1.588000, mleft=2, mright=2, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.2167+13e-3) RELATIVE Guide_9 
+ROTATED (0, (2.415350/12000)*RAD2DEG, 0) RELATIVE Guide_9
+
+COMPONENT Guide_11 = Guide_gravity(
+    w1=0.060000, h1=0.078035, w2=0.060000, h2=0.080842,
+    l=3.634900, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 1.588000+13e-3) RELATIVE Guide_10 
+ROTATED (0, (2.624450/12000)*RAD2DEG, 0) RELATIVE Guide_10
+
+COMPONENT Guide_12 = Guide_gravity(
+    w1=0.060000, h1=0.080848, w2=0.060000, h2=0.082063,
+    l=1.999800, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.634900+9.54e-3) RELATIVE Guide_11 
+ROTATED (0, (2.826890/12000)*RAD2DEG, 0) RELATIVE Guide_11
+
+//13A Pre BWC1
+COMPONENT Guide_13A = Guide_gravity( 
+    w1=0.060000, h1=0.082065, w2=0.060000, h2=0.083061,
+    l=1.999800, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 1.999800+3.3e-3) RELATIVE Guide_12 
+ROTATED (0, (2.003100/12000)*RAD2DEG, 0) RELATIVE Guide_12
+
+/* Bandwidth chopper 1 */
+
+COMPONENT BW_Chopper_1 = MultiDiskChopper(
+    slit_center = theta_pos_BW1, 
+    slit_width = theta_width_BW1,  
+    radius = radius_BW1, 
+    delta_y = delta_y_BW1, 
+    nu=f_BW1,
+    delay = delay_BW1, 
+    nslits = nslits_BW1)
+AT (0.0, 0.0, 1.999800+15e-3) RELATIVE Guide_13A //Guide_13A length + half of the 30mm gap
+ROTATED (0, 0.0,0) RELATIVE Guide_13A
+
+//13B Post BWC1
+COMPONENT Guide_13B = Guide_gravity( 
+   w1=0.060000, h1=0.083074, w2=0.060000, h2=0.083856,
+    l=1.999800, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 15e-3) RELATIVE BW_Chopper_1 
+ROTATED (0, (2.029800/12000)*RAD2DEG, 0) RELATIVE BW_Chopper_1
+
+COMPONENT Guide_14A = Guide_gravity(
+    w1=0.060000, h1=0.083857, w2=0.060000, h2=0.084433,
+    l=1.999800, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 1.999800+3.3e-3) RELATIVE Guide_13B
+ROTATED (0, (2.003100/12000)*RAD2DEG, 0) RELATIVE Guide_13B
+
+COMPONENT Guide_14B = Guide_gravity(
+    w1=0.060000, h1=0.084433, w2=0.060000, h2=0.084803,
+    l=1.963300, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 1.999800+7e-4) RELATIVE Guide_14A
+ROTATED (0, (1.982250/12000)*RAD2DEG, 0) RELATIVE Guide_14A
+
+COMPONENT Guide_15A = Guide_gravity(
+    w1=0.060000, h1=0.084803, w2=0.060000, h2=0.084983,
+    l=1.990800, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 1.963301000+3.3e-3) RELATIVE Guide_14B
+ROTATED (0, (1.980351/12000)*RAD2DEG, 0) RELATIVE Guide_14B
+
+/* Bandwidth chopper 2 */
+COMPONENT BW_Chopper_2 = MultiDiskChopper(
+    slit_center = theta_pos_BW2, 
+    slit_width = theta_width_BW2,  
+    radius = radius_BW2, 
+    delta_y = delta_y_BW2, 
+    nu=f_BW2,
+    delay = delay_BW2, 
+    nslits = nslits_BW2)
+AT (0.0, 0.0, 1.990800+15e-3) RELATIVE Guide_15A //Guide_15A length + half of the 30mm gap
+ROTATED (0, 0.0, 0) RELATIVE Guide_15A
+
+COMPONENT Guide_15B = Guide_gravity(
+    w1=0.060000, h1=0.084984, w2=0.060000, h2=0.084965,
+    l=2.001200, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 15e-3) RELATIVE BW_Chopper_2
+ROTATED (0, (2.026000/12000)*RAD2DEG, 0) RELATIVE BW_Chopper_2
+
+COMPONENT arm_BW_monitor = Arm()
+AT (0, 0, 2.001200+1e-6) RELATIVE Guide_15B
+ROTATED (0, (1.000601/12000)*RAD2DEG, 0) RELATIVE Guide_15B
+
+COMPONENT BW2_monitor_ToF = Monitor_nD(
+    options=setBW2,
+    xwidth = 0.06, yheight = 0.084,
+    filename = "BW2_monitor_tof.dat",
+    restore_neutron=1)
+AT (0, 0, 13.7e-3) RELATIVE arm_BW_monitor
+ROTATED (0, 0, 0) RELATIVE arm_BW_monitor
+
+COMPONENT Guide_16 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 16.61e-3) RELATIVE BW2_monitor_ToF //arm at 2.0012 + monitor 13.7 + 16.61 = 30.31 mm ToO gap
+ROTATED (0, 0.000000000, 0) RELATIVE BW2_monitor_ToF
+
+COMPONENT Guide_17 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_16
+ROTATED (0, (6.028661/12000)*RAD2DEG, 0) RELATIVE Guide_16
+
+COMPONENT Guide_18 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_17
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_17
+
+COMPONENT Guide_19 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_18
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_18
+
+COMPONENT Guide_20 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_19
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_19
+
+COMPONENT Guide_21 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_20
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_20
+
+COMPONENT Guide_22 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_21
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_21
+
+COMPONENT Guide_23 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_22
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_22
+
+COMPONENT Guide_24 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_23
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_23
+
+
+COMPONENT Guide_25 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_24
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_24
+
+COMPONENT Guide_26 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.0, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_25
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_25
+
+COMPONENT Guide_27 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.0, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_26
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_26
+
+COMPONENT Guide_28 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.996700, mleft=1.0, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_27
+ROTATED (0, (4.000001/12000)*RAD2DEG, 0) RELATIVE Guide_27
+
+COMPONENT Guide_29 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=1.998000, mleft=1, mright=2.5, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.996701000+3.3e-3) RELATIVE Guide_28
+ROTATED (0, (3.000651/12000)*RAD2DEG, 0) RELATIVE Guide_28
+
+COMPONENT Guide_30 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.997000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 1.998001000+3e-3) RELATIVE Guide_29
+ROTATED (0, (0.999435/12000)*RAD2DEG, 0) RELATIVE Guide_29
+
+COMPONENT Guide_31 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.997000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.997001000+3e-3) RELATIVE Guide_30
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_30
+
+COMPONENT Guide_32 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=3.893750, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 3.997001000+3e-3) RELATIVE Guide_31
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_31
+
+
+/* ---------------------- P-Chopper -------------------- */
+COMPONENT PSC1 = DiskChopper(
+    radius=0.35, yheight=0.095, theta_0=P_slit,
+    nu=f_P1, nslit=2,
+    delay=tof_P1)
+AT (0, 0.0, 3.893750 + 53.7e-3) RELATIVE Guide_32
+ROTATED (0, 0, 180) RELATIVE Guide_32
+
+COMPONENT PSC2 = DiskChopper(
+    radius=0.35, yheight=0.095, theta_0=P_slit,
+    nu=f_P2, nslit=2,
+    delay=tof_P2)
+AT (0, 0.0,0.1) RELATIVE PSC1
+ROTATED (0, 0, 0) RELATIVE PSC1
+
+COMPONENT Guide_33 = Guide_gravity(
+    w1=0.060000, h1=0.085000, w2=0.060000, h2=0.085000,
+    l=2.994300, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 53.7e-3) RELATIVE PSC2
+ROTATED (0, 0.000000000, 0) RELATIVE PSC2
+
+COMPONENT arm_P_monitor = Arm()
+AT (0, 0, 2.994300+1e-6) RELATIVE Guide_33
+ROTATED (0, 0, 0) RELATIVE Guide_33
+
+/* NB: this monitor is at 111.098 m (Guide_33 exit), NOT at the P-chopper.
+   Its window is framed with L_Pmon accordingly.                              */
+COMPONENT P_monitor_ToF_cm2 = Monitor_nD(
+    options=setP,
+    xwidth = 0.01, yheight = 0.01,
+    filename = "P_monitor_tof_cm2.dat",
+    restore_neutron=1)
+AT (0, 0, 1e-6) RELATIVE arm_P_monitor
+ROTATED (0, 0, 0) RELATIVE arm_P_monitor
+
+COMPONENT P_monitor_Lam = Monitor_nD(
+    options= "lambda limits=[3:6], bins=250",
+    xwidth = 0.01, yheight = 0.01,
+    filename = "P_monitor_tof_Lam.dat",
+    restore_neutron=1)
+AT (0, 0, 1e-6) RELATIVE P_monitor_ToF_cm2
+ROTATED (0, 0, 0) RELATIVE P_monitor_ToF_cm2
+
+COMPONENT Guide_34 = Guide_gravity(
+    w1=0.060129, h1=0.085000, w2=0.064343, h2=0.085000,
+    l=4.000000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 1e-6) RELATIVE P_monitor_Lam
+ROTATED (0, 0.000000000, 0) RELATIVE P_monitor_Lam
+
+COMPONENT Guide_35 = Guide_gravity(
+    w1=0.064343, h1=0.085000, w2=0.067329, h2=0.085000,
+    l=4.000000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_34
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_34
+
+COMPONENT Guide_36 = Guide_gravity(
+    w1=0.067329, h1=0.085000, w2=0.069247, h2=0.085000,
+    l=4.000000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_35
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_35
+
+COMPONENT Guide_37 = Guide_gravity(
+    w1=0.069247, h1=0.085000, w2=0.069542, h2=0.085000,
+    l=0.902000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_36
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_36
+
+COMPONENT Guide_38 = Guide_gravity(
+    w1=0.069542, h1=0.084998, w2=0.070266, h2=0.084562,
+    l=4.000000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 0.902000+1e-6) RELATIVE Guide_37
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_37
+
+COMPONENT Guide_39 = Guide_gravity(
+    w1=0.070266, h1=0.084562, w2=0.070052, h2=0.083340,
+    l=4.000000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_38
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_38
+
+COMPONENT Guide_40 = Guide_gravity(
+    w1=0.070052, h1=0.083340, w2=0.068891, h2=0.081295,
+    l=4.000000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_39
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_39
+
+COMPONENT Guide_41 = Guide_gravity(
+    w1=0.068891, h1=0.081295, w2=0.066734, h2=0.078364,
+    l=4.000000, mleft=1, mright=1, mtop=2.5, mbottom=2.5,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_40
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_40
+
+COMPONENT Guide_42 = Guide_gravity(
+    w1=0.066734, h1=0.078364, w2=0.063480, h2=0.074442,
+    l=4.000000, mleft=1, mright=1, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_41
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_41
+
+COMPONENT Guide_43 = Guide_gravity(
+    w1=0.063480, h1=0.074442, w2=0.058948, h2=0.069361,
+    l=4.000000, mleft=1.5, mright=1.5, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_42
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_42
+
+
+COMPONENT Guide_44 = Guide_gravity(
+    w1=0.058948, h1=0.069361, w2=0.053650, h2=0.063717,
+    l=3.518000, mleft=1.5, mright=1.5, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_43
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_43
+
+// FAN Chopper Gap was here... 70mm in the ToO
+
+COMPONENT Guide_45 = Guide_gravity(
+    w1=0.053650, h1=0.063717, w2=0.045404, h2=0.055354,
+    l=4.000000, mleft=1.5, mright=1.5, mtop=3, mbottom=3,
+    G=0)
+AT (0, 0, 3.518000+70e-3) RELATIVE Guide_44
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_44
+
+//No 46 in the ToO not skipping a part
+
+COMPONENT Guide_47 = Guide_gravity(
+    w1=0.045404, h1=0.055354, w2=0.038918, h2=0.049103,
+    l=2.407000, mleft=2, mright=2, mtop=4, mbottom=4,
+    G=0)
+AT (0, 0, 4.000000+1e-6) RELATIVE Guide_45
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_45
+
+//48b corresponding to the actual guide. Polarising equipment goes here: SEOP + V-cavity: Future components to add.
+COMPONENT Guide_48b = Guide_gravity(
+    w1=0.038918, h1=0.049103, w2=0.035667, h2=0.046092,
+    l=1.000000, mleft=2, mright=2, mtop=4.5, mbottom=4.5,
+    G=0)
+AT (0, 0, 2.4070+5e-3) RELATIVE Guide_47
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_47
+
+COMPONENT Guide_49 = Guide_gravity(
+    w1=0.035667, h1=0.046092, w2=0.022761, h2=0.035233,
+    l=2.930000, mleft=2, mright=2, mtop=4.5, mbottom=4.5,
+    G=0)
+AT (0, 0, 1.0+1e-6) RELATIVE Guide_48b
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_48b
+
+COMPONENT MonochromatingChopper1 = DiskChopper(
+    radius  = 0.35,
+    yheight = 0.045,           
+    theta_0 = M_slit,
+    nu      = f*RRM*0.5,            
+    nslit   = 1,
+    delay   = tof_M1
+)
+AT (0, 0, 2.93+65e-3) RELATIVE Guide_49
+ROTATED (0, 0.000000000, 0) RELATIVE Guide_49
+
+COMPONENT MonochromatingChopper2 = DiskChopper(
+    radius  = 0.35,
+    yheight = 0.045,           
+    theta_0 = M_slit,
+    nu      = -f*RRM,            
+    nslit   = 1,
+    delay   = tof_M2
+)
+AT (0, 0, 10e-3) RELATIVE MonochromatingChopper1
+ROTATED (0, 0.000000000, 0) RELATIVE MonochromatingChopper1
+
+/* Sits 1 um after MC2 at 162.005 m, so setM (framed with L_M2) is correct. */
+COMPONENT M_monitor_ToF_cm2 = Monitor_nD(
+    options=setM,
+    xwidth = 0.01, yheight = 0.01,
+    filename = "M_monitor_tof_1cm2.dat",
+    restore_neutron=1)
+AT (0, 0, 1E-6) RELATIVE MonochromatingChopper2
+
+
+//Primary guide only. Will add the collimators back soon.
+COMPONENT Guide_50a = Guide_gravity(
+    w1=0.022761, h1=0.035233, w2=0.013540, h2=0.029204,
+    l=1.080000, mleft=3.5, mright=3.5, mtop=4.5, mbottom=4.5,
+    G=0)
+AT (0, 0, 65.0e-3 - 1E-6) RELATIVE M_monitor_ToF_cm2
+ROTATED (0, 0.000000000, 0) RELATIVE M_monitor_ToF_cm2
+
+
+/*-----------Sample Position-----------------------------------------------------*/
+COMPONENT Sample_pos = Arm()
+AT (0, 0, 1.080000 + 650e-3) RELATIVE Guide_50a      /* Guide_50a exit + 650 mm -> 163.800 m */
+ROTATED (0, 0, 0) RELATIVE Guide_50a
+
+COMPONENT at_sample_monitor_ToF_cm2 = Monitor_nD(
+    options=setS,
+    xwidth = 0.01, yheight = 0.01,
+    filename = "sample_monitor_tof_1cm2_ToO_Coarse.dat",
+    restore_neutron=1)
+AT (0, 0, 1e-6) RELATIVE PREVIOUS
+
+COMPONENT sample_monitor_xy = Monitor_nD(
+    options="x limits [-0.05:0.05] bins = 101, y limits [-0.025:0.025] bins = 101",
+    xwidth = 0.1, yheight = 0.05,
+    filename = "sample_monitor_xy.dat",
+    restore_neutron=1)
+AT (0, 0, 1e-6) RELATIVE PREVIOUS
+
+COMPONENT sample_monitor_hdiv = Monitor_nD(
+    options="hdiv limits [-2.0:2.0] bins = 101",
+    xwidth = 0.055, yheight = 0.075,
+    filename = "sample_monitor_hdiv.dat",
+    restore_neutron=1)
+AT (0, 0, 1E-6) RELATIVE PREVIOUS
+
+COMPONENT sample_monitor_vdiv = Monitor_nD(
+    options="vdiv limits [-2.0:2.0] bins = 101",
+    xwidth = 0.055, yheight = 0.075,
+    filename = "sample_monitor_vdiv.dat",
+    restore_neutron=1)
+AT (0, 0, 1E-6) RELATIVE PREVIOUS
+
+END
