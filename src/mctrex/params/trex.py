@@ -67,42 +67,11 @@
 *******************************************************************************/
 """
 
-from mctrex.mcstas_components import ESS_butterfly, Progress_bar
 from mctrex.params.guides_curve import guides_curve_1
 from mctrex.params.guides_extraction import guides_extraction
+from mctrex.params.source import ess_source
 
-# =============================================================================
-# ORIGIN
-# =============================================================================
-
-origin = Progress_bar(name="origin", percent=10)
-
-# =============================================================================
-# ESS SOURCE
-# =============================================================================
-
-source = ESS_butterfly(
-    name="source",
-    sector='"W"',
-    beamline=7,
-    # Lmin=0.1,   # in Angstrom
-    # Lmax=10.0,  # in Angstrom
-    acc_power=2,  # [MW]
-    yheight=0.03,  # [m], moderator height, 0.03 to 0.06
-    cold_frac=0.3,
-    dist=2,  # [m], distance to focusing rectangle
-    focus_xw=0.095,  # [m], size of focusing rectangle
-    focus_yh=0.035,
-    n_pulses=1,
-)
-
-
-# =============================================================================
-# Instrument order: each RELATIVE target must be added before whatever
-# references it (arm_after_bender before guide_5, arm_NBOA before everything
-# else that references it).
-# =============================================================================
-component_list = [origin, source]
+component_list = ess_source
 component_list.extend(guides_extraction)
 component_list.extend(guides_curve_1)
 component_list.extend([])
