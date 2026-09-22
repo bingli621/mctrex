@@ -15,7 +15,7 @@
 * 
 * %Identification
 * Written by: Bing Li
-* Date: 15:59:37 on September 17, 2026
+* Date: 14:37:19 on September 22, 2026
 * Origin: ESS DMSC
 * %INSTRUMENT_SITE: Generated_instruments
 * 
@@ -68,12 +68,10 @@ double f = 14.0; // Source frequency in [Hz]
     double delay_BW1; //time delay
 
     double radius_BW1 = 0.35;
-    double delta_y_BW1 = -0.3075;
-
     double slit_edges_BW1[2] = {-30.7, 30.7};
     double n_edges_BW1 = 2;
     double slit_width_BW1 = 0.06;
-    double slit_height_BW1 = 0.08;
+    double slit_height_BW1 = 0.095;
 
     // BW2 Chopper
     double f_BW2;
@@ -85,7 +83,7 @@ double f = 14.0; // Source frequency in [Hz]
     double slit_edges_BW2[2] = {-31.65, 31.65};
     double n_edges_BW2 = 2;
     double slit_width_BW2 = 0.06;
-    double slit_height_BW2 = 0.08;
+    double slit_height_BW2 = 0.095;
 
 
     // P1 Chopper
@@ -99,7 +97,7 @@ double f = 14.0; // Source frequency in [Hz]
     double slit_edges_P1[8] = {-10, 10, 107.5, 142.5, 170, 190, 287.5, 322.5};
     double n_edges_P1 = 8;
     double slit_width_P1 = 0.06;
-    double slit_height_P1 = 0.08;
+    double slit_height_P1 = 0.095;
 
 
 
@@ -114,7 +112,7 @@ double f = 14.0; // Source frequency in [Hz]
     double slit_edges_P2[8] = {-10, 10, 107.5, 142.5, 170, 190, 287.5, 322.5};
     double n_edges_P2 = 8;
     double slit_width_P2 = 0.06;
-    double slit_height_P2 = 0.08;
+    double slit_height_P2 = 0.095;
 
 
 
@@ -129,7 +127,7 @@ double f = 14.0; // Source frequency in [Hz]
     double slit_edges_M1[4] = {178.25, 181.25, 362.8, 367.2};
     double n_edges_M1 = 4;
     double slit_width_M1 = 0.06;
-    double slit_height_M1 = 0.08;
+    double slit_height_M1 = 0.045;
 
 
     // M2 Chopper
@@ -143,7 +141,7 @@ double f = 14.0; // Source frequency in [Hz]
     double slit_edges_M2[4] = {-1.25, 1.25, 182.8, 187.2};
     double n_edges_M2 = 4;
     double slit_width_M2 = 0.06;
-    double slit_height_M2 = 0.08;
+    double slit_height_M2 = 0.045;
 
     
 %}
