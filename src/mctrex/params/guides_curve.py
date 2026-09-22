@@ -142,26 +142,133 @@ guide_9.RELATIVE = "Guide_8"
 # AT (0, 0, 4+2e-3) RELATIVE Guide_8
 # ROTATED (0, (3.610350/12000)*RAD2DEG, 0) RELATIVE Guide_8
 
-# COMPONENT Guide_10 = Guide_gravity(
-#     w1=0.060000, h1=0.076538, w2=0.060000, h2=0.078024,
-#     l=1.588000, mleft=2, mright=2, mtop=2.5, mbottom=2.5,
-#     G=0)
+# =============================================================================
+guide_10 = Guide_gravity(
+    name="Guide_10",
+    w1=0.060000,
+    h1=0.076538,
+    w2=0.060000,
+    h2=0.078024,
+    l=1.588000,
+    mleft=2,
+    mright=2,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=22.7007,
+    z2=24.2887,
+)
+_gap = gap(guide_10, guide_9)
+_rot_y = curve_rot_y(guide_9, guide_10, _gap)
+
+guide_10.AT = [0, 0, guide_9.l + _gap]
+guide_10.ROTATED = [0, _rot_y, 0]
+guide_10.RELATIVE = "Guide_9"
+
 # AT (0, 0, 3.2167+13e-3) RELATIVE Guide_9
 # ROTATED (0, (2.415350/12000)*RAD2DEG, 0) RELATIVE Guide_9
 
-# COMPONENT Guide_11 = Guide_gravity(
-#     w1=0.060000, h1=0.078035, w2=0.060000, h2=0.080842,
-#     l=3.634900, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
-#     G=0)
+# =============================================================================
+guide_11 = Guide_gravity(
+    name="Guide_11",
+    w1=0.060000,
+    h1=0.078035,
+    w2=0.060000,
+    h2=0.080842,
+    l=3.634900,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=24.3017,
+    z2=27.9366,
+)
+_gap = gap(guide_11, guide_10)
+_rot_y = curve_rot_y(guide_10, guide_11, _gap)
+
+guide_11.AT = [0, 0, guide_10.l + _gap]
+guide_11.ROTATED = [0, _rot_y, 0]
+guide_11.RELATIVE = "Guide_10"
+
 # AT (0, 0, 1.588000+13e-3) RELATIVE Guide_10
 # ROTATED (0, (2.624450/12000)*RAD2DEG, 0) RELATIVE Guide_10
 
-# COMPONENT Guide_12 = Guide_gravity(
-#     w1=0.060000, h1=0.080848, w2=0.060000, h2=0.082063,
-#     l=1.999800, mleft=1.5, mright=2.5, mtop=2.5, mbottom=2.5,
-#     G=0)
+# =============================================================================
+guide_12 = Guide_gravity(
+    name="Guide_12",
+    w1=0.060000,
+    h1=0.080848,
+    w2=0.060000,
+    h2=0.082063,
+    l=1.999800,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=27.94614,
+    z2=29.94594,
+)
+_gap = gap(guide_12, guide_11)
+_rot_y = curve_rot_y(guide_11, guide_12, _gap)
+
+guide_12.AT = [0, 0, guide_11.l + _gap]
+guide_12.ROTATED = [0, _rot_y, 0]
+guide_12.RELATIVE = "Guide_11"
+
 # AT (0, 0, 3.634900+9.54e-3) RELATIVE Guide_11
 # ROTATED (0, (2.826890/12000)*RAD2DEG, 0) RELATIVE Guide_11
+
+# =============================================================================
+guide_13a = Guide_gravity(
+    name="Guide_13A",
+    w1=0.060000,
+    h1=0.082065,
+    w2=0.060000,
+    h2=0.083061,
+    l=1.999800,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=29.94924,
+    z2=31.94904,
+)
+_gap = gap(guide_13a, guide_12)
+_rot_y = curve_rot_y(guide_12, guide_13a, _gap)
+
+guide_13a.AT = [0, 0, guide_12.l + _gap]
+guide_13a.ROTATED = [0, _rot_y, 0]
+guide_13a.RELATIVE = "Guide_12"
+
+# //13A Pre BWC1
+# AT (0, 0, 1.999800+3.3e-3) RELATIVE Guide_12
+# ROTATED (0, (2.003100/12000)*RAD2DEG, 0) RELATIVE Guide_12
+
+
+# =============================================================================
+guide_13b = Guide_gravity(
+    name="Guide_13B",
+    w1=0.060000,
+    h1=0.083074,
+    w2=0.060000,
+    h2=0.083856,
+    l=1.999800,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=31.97904,
+    z2=33.97884,
+)
+_gap = gap(guide_13b, guide_13a)
+_rot_y = curve_rot_y(guide_13a, guide_13b, _gap)
+
+guide_13b.AT = [0, 0, guide_13a.l + _gap]
+guide_13b.ROTATED = [0, _rot_y, 0]
+guide_13b.RELATIVE = "Guide_13A"
+
+# //13B Post BWC1
+# AT (0, 0, 15e-3) RELATIVE BW_Chopper_1
+# ROTATED (0, (2.029800/12000)*RAD2DEG, 0) RELATIVE BW_Chopper_1
 
 # =============================================================================
 # Curved guides
@@ -173,4 +280,12 @@ guides_curve_1 = [
     guide_7,
     guide_8,
     guide_9,
+    guide_10,
+    guide_11,
+    guide_12,
+    guide_13a,
+]
+
+guides_curve_2 = [
+    guide_13b,
 ]

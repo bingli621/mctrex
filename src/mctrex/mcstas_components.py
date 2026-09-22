@@ -108,6 +108,26 @@ class Arm(McStasComponent):
 
 
 @dataclass(kw_only=True)
+class NXdisk_chopper(McStasComponent):
+    """Disk chopper with an arbitrary number of slits, defined by slit edge angles."""
+
+    slit_edges: str
+    n_edges: int  # number of entries in slit_edges; must be even and non-zero
+
+    radius: float = 0.35  # [m], outer radius of the disc
+    yheight: float = 0  # [m], radial clearance of the openings; 0 reach the spindle
+    xwidth: float = 0  # [m], chord width of the beam window; 0 for unrestricted opening
+    nu: int = 14  # [Hz], signed rotation frequency; 0 parks the disc at park_angle
+    delay: float = 0  # [s], when the disc's zero mark is on the beam
+    park_angle: float = 0  # [deg],  only read when nu is 0
+    beam_angle: float = 0  # [deg], where the beam crosses the disc, from the zero mark; 0 puts the beam at the top
+    zero_angle: float = 0  # [deg], from the component's +y axis to the TDC pickup
+    jitter: float = 0  # [s], timing jitter applied to each ray
+    abs_out: int = 0  # absorb rays that miss the disc entirely
+    verbose: int = 0  # -1: silent, 0: errors, 1: warnings, 2: info, 3: details
+
+
+@dataclass(kw_only=True)
 class Pol_bender(McStasComponent):
     """Polarizing Si-stack bender segment."""
 
