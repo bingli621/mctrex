@@ -67,15 +67,28 @@
 *******************************************************************************/
 """
 
-from mctrex.params.choppers import bw1
-from mctrex.params.guides_curve import guides_curve_1, guides_curve_2
+from mctrex.params.choppers import bw1, bw2
+from mctrex.params.guides_curve import (
+    guides_curve_1,
+    guides_curve_2,
+    guides_curve_3,
+    guides_curve_4,
+)
 from mctrex.params.guides_extraction import guides_extraction
-from mctrex.params.source import ess_source
+from mctrex.params.monitors import bm1
+from mctrex.params.source import origin, source
 
-component_list = ess_source
-component_list.extend(guides_extraction)
-component_list.extend(guides_curve_1)
-component_list.extend([bw1])
-component_list.extend(guides_curve_2)
+component_list = [
+    origin,
+    source,
+    *guides_extraction,
+    *guides_curve_1,
+    bw1,
+    *guides_curve_2,
+    bw2,
+    *guides_curve_3,
+    bm1,
+    *guides_curve_4,
+]
 
-component_dict = {c.name: c for c in component_list}
+components = {c.name: c for c in component_list}

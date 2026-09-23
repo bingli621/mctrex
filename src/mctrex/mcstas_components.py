@@ -17,13 +17,13 @@ def add_components_to(instrument, component_dict):
     return instrument
 
 
-def gap(downstream, upstream):
+def gap(upstream, downstream):
     """Free space between `upstream`'s exit and `downstream`'s entrance."""
 
     return downstream.z1 - upstream.z2
 
 
-def curve_rot_y(upstream, downstream, gap, curve_radius=12_000):
+def curve_rot_y(upstream, gap, downstream, curve_radius=12_000):
     """Midpoint-rule tilt increment [deg] from `upstream` to `downstream` on the `curve_radius` arc."""
 
     return np.degrees(((upstream.l + downstream.l) / 2 + gap) / curve_radius)
@@ -102,9 +102,24 @@ class Guide_gravity(McStasComponent):
 class Arm(McStasComponent):
     """A reference point/frame with no parameters of its own."""
 
+    l: float = 0  # zero physical length, so it chains like any other guide joint
     z1: float = 0  # z position of entrance [m]
     z2: float = 0  # z position of exit [m]
-    _not_params = McStasComponent._not_params + ("z1", "z2")
+    _not_params = McStasComponent._not_params + ("l", "z1", "z2")
+
+
+@dataclass(kw_only=True)
+class Monitor_nD(McStasComponent):
+    """Generic McStas monitor; geometry from xwidth/yheight, behavior from `options`."""
+
+    xwidth: float  # [m]
+    yheight: float  # [m]
+    # McStas "options" string written verbatim, so quoting is on the caller:
+    # a literal spec needs embedded quotes (e.g. '"x limits [-0.15:0.15] bins=301"'),
+    # while an unquoted name (e.g. "setBW2") references a DECLARE'd C string instead
+    options: str
+    filename: str  # quoted output filename, e.g. '"BW2_monitor_tof.dat"'
+    restore_neutron: int = 1
 
 
 @dataclass(kw_only=True)

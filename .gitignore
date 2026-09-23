@@ -44,9 +44,11 @@ Thumbs.db
 .env
 .env.*
 
-# OFF files
+# OFF files and Excel sheets 
 OFF_files*/
+*.xlsx
 
 # McStas files
 mcstas/
 ESS_butterfly_W7/
+jupyter/trex/trex_partial.ipynb

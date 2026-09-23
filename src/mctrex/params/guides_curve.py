@@ -20,6 +20,15 @@ arm_after_bender.RELATIVE = "arm_NBOA"
 curve_radius = 12_000  # [m]
 
 
+def chain_guide_curve(current, previous):
+    """Place `guide` right after `previous` on the curve; mutates and returns `guide`."""
+    g = gap(previous, current)
+    current.AT = [0, 0, previous.l + g]
+    current.ROTATED = [0, curve_rot_y(previous, g, current, curve_radius), 0]
+    current.RELATIVE = previous.name
+    return current
+
+
 guide_5 = Guide_gravity(
     name="Guide_5",
     w1=0.06,
@@ -45,6 +54,7 @@ guide_5.RELATIVE = "arm_after_bender"
 # =============================================================================
 # 12km radius of curvature starts from this section of T-REX!
 # =============================================================================
+
 guide_6 = Guide_gravity(
     name="Guide_6",
     w1=0.060000,
@@ -59,13 +69,7 @@ guide_6 = Guide_gravity(
     z1=8.69150,
     z2=11.454,
 )
-_gap = gap(guide_6, guide_5)
-_rot_y = curve_rot_y(guide_5, guide_6, _gap)
-
-guide_6.AT = [0, 0, guide_5.l + _gap]
-guide_6.ROTATED = [0, _rot_y, 0]
-guide_6.RELATIVE = "Guide_5"
-
+chain_guide_curve(guide_6, guide_5)
 
 # =============================================================================
 guide_7 = Guide_gravity(
@@ -82,15 +86,7 @@ guide_7 = Guide_gravity(
     z1=11.467,
     z2=15.467,
 )
-_gap = gap(guide_7, guide_6)
-_rot_y = curve_rot_y(guide_6, guide_7, _gap)
-
-guide_7.AT = [0, 0, guide_6.l + _gap]
-guide_7.ROTATED = [0, _rot_y, 0]
-guide_7.RELATIVE = "Guide_6"
-
-# AT (0, 0, 2.762500+13e-3) RELATIVE Guide_6
-# ROTATED (0, (3.394250/12000)*RAD2DEG, 0) RELATIVE Guide_6
+chain_guide_curve(guide_7, guide_6)
 
 # =============================================================================
 guide_8 = Guide_gravity(
@@ -107,15 +103,7 @@ guide_8 = Guide_gravity(
     z1=15.469,
     z2=19.469,
 )
-_gap = gap(guide_8, guide_7)
-_rot_y = curve_rot_y(guide_7, guide_8, _gap)
-
-guide_8.AT = [0, 0, guide_7.l + _gap]
-guide_8.ROTATED = [0, _rot_y, 0]
-guide_8.RELATIVE = "Guide_7"
-
-# AT (0, 0, 4+2e-3) RELATIVE Guide_7
-# ROTATED (0, (4.002000/12000)*RAD2DEG, 0) RELATIVE Guide_7
+chain_guide_curve(guide_8, guide_7)
 
 # =============================================================================
 guide_9 = Guide_gravity(
@@ -132,15 +120,7 @@ guide_9 = Guide_gravity(
     z1=19.471,
     z2=22.6877,
 )
-_gap = gap(guide_9, guide_8)
-_rot_y = curve_rot_y(guide_8, guide_9, _gap)
-
-guide_9.AT = [0, 0, guide_8.l + _gap]
-guide_9.ROTATED = [0, _rot_y, 0]
-guide_9.RELATIVE = "Guide_8"
-
-# AT (0, 0, 4+2e-3) RELATIVE Guide_8
-# ROTATED (0, (3.610350/12000)*RAD2DEG, 0) RELATIVE Guide_8
+chain_guide_curve(guide_9, guide_8)
 
 # =============================================================================
 guide_10 = Guide_gravity(
@@ -157,15 +137,7 @@ guide_10 = Guide_gravity(
     z1=22.7007,
     z2=24.2887,
 )
-_gap = gap(guide_10, guide_9)
-_rot_y = curve_rot_y(guide_9, guide_10, _gap)
-
-guide_10.AT = [0, 0, guide_9.l + _gap]
-guide_10.ROTATED = [0, _rot_y, 0]
-guide_10.RELATIVE = "Guide_9"
-
-# AT (0, 0, 3.2167+13e-3) RELATIVE Guide_9
-# ROTATED (0, (2.415350/12000)*RAD2DEG, 0) RELATIVE Guide_9
+chain_guide_curve(guide_10, guide_9)
 
 # =============================================================================
 guide_11 = Guide_gravity(
@@ -182,15 +154,7 @@ guide_11 = Guide_gravity(
     z1=24.3017,
     z2=27.9366,
 )
-_gap = gap(guide_11, guide_10)
-_rot_y = curve_rot_y(guide_10, guide_11, _gap)
-
-guide_11.AT = [0, 0, guide_10.l + _gap]
-guide_11.ROTATED = [0, _rot_y, 0]
-guide_11.RELATIVE = "Guide_10"
-
-# AT (0, 0, 1.588000+13e-3) RELATIVE Guide_10
-# ROTATED (0, (2.624450/12000)*RAD2DEG, 0) RELATIVE Guide_10
+chain_guide_curve(guide_11, guide_10)
 
 # =============================================================================
 guide_12 = Guide_gravity(
@@ -207,15 +171,7 @@ guide_12 = Guide_gravity(
     z1=27.94614,
     z2=29.94594,
 )
-_gap = gap(guide_12, guide_11)
-_rot_y = curve_rot_y(guide_11, guide_12, _gap)
-
-guide_12.AT = [0, 0, guide_11.l + _gap]
-guide_12.ROTATED = [0, _rot_y, 0]
-guide_12.RELATIVE = "Guide_11"
-
-# AT (0, 0, 3.634900+9.54e-3) RELATIVE Guide_11
-# ROTATED (0, (2.826890/12000)*RAD2DEG, 0) RELATIVE Guide_11
+chain_guide_curve(guide_12, guide_11)
 
 # =============================================================================
 guide_13a = Guide_gravity(
@@ -232,18 +188,9 @@ guide_13a = Guide_gravity(
     z1=29.94924,
     z2=31.94904,
 )
-_gap = gap(guide_13a, guide_12)
-_rot_y = curve_rot_y(guide_12, guide_13a, _gap)
+chain_guide_curve(guide_13a, guide_12)
 
-guide_13a.AT = [0, 0, guide_12.l + _gap]
-guide_13a.ROTATED = [0, _rot_y, 0]
-guide_13a.RELATIVE = "Guide_12"
-
-# //13A Pre BWC1
-# AT (0, 0, 1.999800+3.3e-3) RELATIVE Guide_12
-# ROTATED (0, (2.003100/12000)*RAD2DEG, 0) RELATIVE Guide_12
-
-
+# 13A Pre BWC1
 # =============================================================================
 guide_13b = Guide_gravity(
     name="Guide_13B",
@@ -259,16 +206,326 @@ guide_13b = Guide_gravity(
     z1=31.97904,
     z2=33.97884,
 )
-_gap = gap(guide_13b, guide_13a)
-_rot_y = curve_rot_y(guide_13a, guide_13b, _gap)
+chain_guide_curve(guide_13b, guide_13a)
 
-guide_13b.AT = [0, 0, guide_13a.l + _gap]
-guide_13b.ROTATED = [0, _rot_y, 0]
-guide_13b.RELATIVE = "Guide_13A"
+# 13B Post BWC1
+# =============================================================================
+guide_14a = Guide_gravity(
+    name="Guide_14A",
+    w1=0.060000,
+    h1=0.083857,
+    w2=0.060000,
+    h2=0.084433,
+    l=1.999800,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=33.98214,
+    z2=35.98194,
+)
+chain_guide_curve(guide_14a, guide_13b)
 
-# //13B Post BWC1
-# AT (0, 0, 15e-3) RELATIVE BW_Chopper_1
-# ROTATED (0, (2.029800/12000)*RAD2DEG, 0) RELATIVE BW_Chopper_1
+# =============================================================================
+guide_14b = Guide_gravity(
+    name="Guide_14B",
+    w1=0.060000,
+    h1=0.084433,
+    w2=0.060000,
+    h2=0.084803,
+    l=1.963300,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=35.98264,
+    z2=37.94594,
+)
+chain_guide_curve(guide_14b, guide_14a)
+
+# 15A Pre BWC2
+# =============================================================================
+guide_15a = Guide_gravity(
+    name="Guide_15A",
+    w1=0.060000,
+    h1=0.084803,
+    w2=0.060000,
+    h2=0.084983,
+    l=1.990800,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=37.94925,
+    z2=39.94004,
+)
+chain_guide_curve(guide_15a, guide_14b)
+
+# 15B Post BWC2
+# =============================================================================
+guide_15b = Guide_gravity(
+    name="Guide_15B",
+    w1=0.060000,
+    h1=0.084984,
+    w2=0.060000,
+    h2=0.084965,
+    l=2.001200,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=39.97004,
+    z2=41.97124,
+)
+chain_guide_curve(guide_15b, guide_15a)
+# =============================================================================
+
+arm_bm1 = Arm(
+    name="arm_BM1",
+    l=0.02,
+    z1=41.97786,
+    z2=41.99786,
+)
+chain_guide_curve(arm_bm1, guide_15b)
+
+# =============================================================================
+guide_16 = Guide_gravity(
+    name="Guide_16",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=42.00155,
+    z2=45.99825,
+)
+chain_guide_curve(guide_16, guide_15b)
+
+# =============================================================================
+guide_17 = Guide_gravity(
+    name="Guide_17",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=46.00155,
+    z2=49.99825,
+)
+chain_guide_curve(guide_17, guide_16)
+
+# =============================================================================
+guide_18 = Guide_gravity(
+    name="Guide_18",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=50.00155,
+    z2=53.99825,
+)
+chain_guide_curve(guide_18, guide_17)
+
+# =============================================================================
+guide_19 = Guide_gravity(
+    name="Guide_19",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=54.00155,
+    z2=57.99825,
+)
+chain_guide_curve(guide_19, guide_18)
+
+# =============================================================================
+guide_20 = Guide_gravity(
+    name="Guide_20",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=58.00155,
+    z2=61.99825,
+)
+chain_guide_curve(guide_20, guide_19)
+
+# =============================================================================
+guide_21 = Guide_gravity(
+    name="Guide_21",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=62.00155,
+    z2=65.99825,
+)
+chain_guide_curve(guide_21, guide_20)
+
+# =============================================================================
+guide_22 = Guide_gravity(
+    name="Guide_22",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=66.00155,
+    z2=69.99825,
+)
+chain_guide_curve(guide_22, guide_21)
+
+# =============================================================================
+guide_23 = Guide_gravity(
+    name="Guide_23",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=70.00155,
+    z2=73.99825,
+)
+chain_guide_curve(guide_23, guide_22)
+
+# =============================================================================
+guide_24 = Guide_gravity(
+    name="Guide_24",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=74.00155,
+    z2=77.99825,
+)
+chain_guide_curve(guide_24, guide_23)
+
+# =============================================================================
+guide_25 = Guide_gravity(
+    name="Guide_25",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1.5,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=78.00155,
+    z2=81.99825,
+)
+chain_guide_curve(guide_25, guide_24)
+
+# =============================================================================
+guide_26 = Guide_gravity(
+    name="Guide_26",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=82.00155,
+    z2=85.99825,
+)
+chain_guide_curve(guide_26, guide_25)
+
+# =============================================================================
+guide_27 = Guide_gravity(
+    name="Guide_27",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=86.00155,
+    z2=89.99825,
+)
+chain_guide_curve(guide_27, guide_26)
+
+# =============================================================================
+guide_28 = Guide_gravity(
+    name="Guide_28",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=3.996700,
+    mleft=1,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=90.00155,
+    z2=93.99825,
+)
+chain_guide_curve(guide_28, guide_27)
+
+# End of 12 km curve radius / end of T1 (96 m)
+# =============================================================================
+guide_29 = Guide_gravity(
+    name="Guide_29",
+    w1=0.060000,
+    h1=0.085000,
+    w2=0.060000,
+    h2=0.085000,
+    l=1.998000,
+    mleft=1,
+    mright=2.5,
+    mtop=2.5,
+    mbottom=2.5,
+    z1=94.00155,
+    z2=95.99955,
+)
+chain_guide_curve(guide_29, guide_28)
 
 # =============================================================================
 # Curved guides
@@ -288,4 +545,29 @@ guides_curve_1 = [
 
 guides_curve_2 = [
     guide_13b,
+    guide_14a,
+    guide_14b,
+    guide_15a,
+]
+
+guides_curve_3 = [
+    guide_15b,
+    arm_bm1,
+]
+
+guides_curve_4 = [
+    guide_16,
+    guide_17,
+    guide_18,
+    guide_19,
+    guide_20,
+    guide_21,
+    guide_22,
+    guide_23,
+    guide_24,
+    guide_25,
+    guide_26,
+    guide_27,
+    guide_28,
+    guide_29,
 ]

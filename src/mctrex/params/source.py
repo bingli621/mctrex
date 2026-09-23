@@ -24,5 +24,3 @@ source = ESS_butterfly(
     focus_yh=0.035,
     n_pulses=1,
 )
-
-ess_source = [origin, source]
