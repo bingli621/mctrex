@@ -21,7 +21,7 @@ curve_radius = 12_000  # [m]
 
 
 def chain_guide_curve(current, previous):
-    """Place `guide` right after `previous` on the curve; mutates and returns `guide`."""
+    """Place `current` right after `previous` on the curve."""
     g = gap(previous, current)
     current.AT = [0, 0, previous.l + g]
     current.ROTATED = [0, curve_rot_y(previous, g, current, curve_radius), 0]
@@ -190,7 +190,17 @@ guide_13a = Guide_gravity(
 )
 chain_guide_curve(guide_13a, guide_12)
 
-# 13A Pre BWC1
+# BWC1 Gap: 30 mm slot for BW_Chopper_1 (bw1 in choppers.py, which places
+# itself at this gap's midpoint) - a branch off Guide_13A, same pattern as
+# arm_bm1; Guide_13B below still chains directly off Guide_13A.
+arm_bwc1 = Arm(
+    name="Arm_BWC1",
+    l=0.030000,
+    z1=31.949040,
+    z2=31.979040,
+)
+chain_guide_curve(arm_bwc1, guide_13a)
+
 # =============================================================================
 guide_13b = Guide_gravity(
     name="Guide_13B",
@@ -206,7 +216,7 @@ guide_13b = Guide_gravity(
     z1=31.97904,
     z2=33.97884,
 )
-chain_guide_curve(guide_13b, guide_13a)
+chain_guide_curve(guide_13b, arm_bwc1)
 
 # 13B Post BWC1
 # =============================================================================
@@ -261,7 +271,17 @@ guide_15a = Guide_gravity(
 )
 chain_guide_curve(guide_15a, guide_14b)
 
-# 15B Post BWC2
+# BWC2 Gap: 30 mm slot for BW_Chopper_2 (bw2 in choppers.py, which places
+# itself at this gap's midpoint) - a branch off Guide_15A, same pattern as
+# arm_bwc1; Guide_15B below still chains directly off Guide_15A.
+arm_bwc2 = Arm(
+    name="Arm_BWC2",
+    l=0.030000,
+    z1=39.940040,
+    z2=39.970040,
+)
+chain_guide_curve(arm_bwc2, guide_15a)
+
 # =============================================================================
 guide_15b = Guide_gravity(
     name="Guide_15B",
@@ -277,11 +297,11 @@ guide_15b = Guide_gravity(
     z1=39.97004,
     z2=41.97124,
 )
-chain_guide_curve(guide_15b, guide_15a)
+chain_guide_curve(guide_15b, arm_bwc2)
 # =============================================================================
 
 arm_bm1 = Arm(
-    name="arm_BM1",
+    name="Arm_BM1",
     l=0.02,
     z1=41.97786,
     z2=41.99786,
@@ -303,7 +323,7 @@ guide_16 = Guide_gravity(
     z1=42.00155,
     z2=45.99825,
 )
-chain_guide_curve(guide_16, guide_15b)
+chain_guide_curve(guide_16, arm_bm1)
 
 # =============================================================================
 guide_17 = Guide_gravity(
@@ -541,6 +561,7 @@ guides_curve_1 = [
     guide_11,
     guide_12,
     guide_13a,
+    arm_bwc1,
 ]
 
 guides_curve_2 = [
@@ -548,6 +569,7 @@ guides_curve_2 = [
     guide_14a,
     guide_14b,
     guide_15a,
+    arm_bwc2,
 ]
 
 guides_curve_3 = [

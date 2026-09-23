@@ -67,7 +67,7 @@
 *******************************************************************************/
 """
 
-from mctrex.params.choppers import bw1, bw2
+from mctrex.params.choppers import bw1, bw2, mc1, mc2, ps1, ps2
 from mctrex.params.guides_curve import (
     guides_curve_1,
     guides_curve_2,
@@ -75,6 +75,11 @@ from mctrex.params.guides_curve import (
     guides_curve_4,
 )
 from mctrex.params.guides_extraction import guides_extraction
+from mctrex.params.guides_straight import (
+    guides_straight_1,
+    guides_straight_2,
+    guides_straight_3,
+)
 from mctrex.params.monitors import bm1
 from mctrex.params.source import origin, source
 
@@ -89,6 +94,13 @@ component_list = [
     *guides_curve_3,
     bm1,
     *guides_curve_4,
+    *guides_straight_1,
+    ps1,
+    ps2,
+    *guides_straight_2,
+    mc1,
+    mc2,
+    *guides_straight_3,
 ]
 
 components = {c.name: c for c in component_list}

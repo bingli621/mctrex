@@ -13,6 +13,13 @@ def add_components_to(instrument, component_dict):
     """Add every component in `components` to `instrument`."""
 
     for component in component_dict.values():
+        if isinstance(component, NXdisk_chopper):
+            size = len(component.slit_edges)
+            values = ", ".join(str(v) for v in component.slit_edges)
+            instrument.append_declare(
+                f"double slit_edges_{component.name}[{size}] = {{{values}}};"
+            )
+            component.slit_edges = f"slit_edges_{component.name}"
         component.add_to(instrument)
     return instrument
 
@@ -126,7 +133,9 @@ class Monitor_nD(McStasComponent):
 class NXdisk_chopper(McStasComponent):
     """Disk chopper with an arbitrary number of slits, defined by slit edge angles."""
 
-    slit_edges: str
+    # a plain sequence of values until add_components_to() DECLAREs it as a
+    # named C array and rewrites this to that array's name (a str) instead
+    slit_edges: Sequence[float] | str
     n_edges: int  # number of entries in slit_edges; must be even and non-zero
 
     radius: float = 0.35  # [m], outer radius of the disc

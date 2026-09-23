@@ -10,4 +10,4 @@ bm1 = Monitor_nD(
     restore_neutron=1,
 )
 bm1.AT = [0, 0, arm_bm1.l / 2]
-bm1.RELATIVE = "arm_BM1"
+bm1.RELATIVE = "Arm_BM1"
