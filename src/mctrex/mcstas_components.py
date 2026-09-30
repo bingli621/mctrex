@@ -20,6 +20,7 @@ def add_components_to(instrument, component_dict):
                 f"double slit_edges_{component.name}[{size}] = {{{values}}};"
             )
             component.slit_edges = f"slit_edges_{component.name}"
+
         component.add_to(instrument)
     return instrument
 
@@ -45,8 +46,9 @@ class McStasComponent:
     ROTATED: Sequence[float] = (0, 0, 0)
     RELATIVE: Any = "ABSOLUTE"  # arm/component object (or name) relative to
     WHEN: str | None = None  # logical c expression component is conditional on
+    SPLIT: int | None = None
 
-    _not_params = ("name", "AT", "ROTATED", "RELATIVE", "WHEN")
+    _not_params = ("name", "AT", "ROTATED", "RELATIVE", "WHEN", "SPLIT")
 
     def add_to(self, instrument, **extra_params):
         """Add this component to `instrument`, set its params, and return it."""
@@ -60,6 +62,8 @@ class McStasComponent:
         )
         params = {k: v for k, v in vars(self).items() if k not in self._not_params}
         comp.set_parameters(**params, **extra_params)
+        if self.SPLIT is not None:
+            comp.set_SPLIT(self.SPLIT)
         return comp
 
 
@@ -113,6 +117,23 @@ class Arm(McStasComponent):
     z1: float = 0  # z position of entrance [m]
     z2: float = 0  # z position of exit [m]
     _not_params = McStasComponent._not_params + ("l", "z1", "z2")
+
+
+@dataclass(kw_only=True)
+class Slit(McStasComponent):
+    """Rectangular or circular slit; rays outside the opening are absorbed."""
+
+    # give either xmin/xmax/ymin/ymax, or xwidth/yheight, or radius (circular)
+    # xmin: float = -0.01  # [m], lower x bound of the opening
+    # xmax: float = 0.01  # [m], upper x bound of the opening
+    # ymin: float = -0.01  # [m], lower y bound of the opening
+    # ymax: float = 0.01  # [m], upper y bound of the opening
+    # radius: float = 0  # [m], radius of a circular opening; 0 selects the rectangle
+    xwidth: float = 0  # [m], full width; 0 uses xmin/xmax
+    yheight: float = 0  # [m], full height; 0 uses ymin/ymax
+
+    z1: float = 0  # z position of entrance [m]
+    _not_params = McStasComponent._not_params + ("z1",)
 
 
 @dataclass(kw_only=True)

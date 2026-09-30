@@ -1,4 +1,4 @@
-from mctrex.mcstas_components import Arm, Guide_gravity, gap
+from mctrex.mcstas_components import Arm, Guide_gravity, Slit, gap
 from mctrex.params.guides_curve import guide_29
 
 
@@ -378,11 +378,28 @@ guide_50a = Guide_gravity(
 )
 chain_guide_straight(guide_50a, arm_mc)
 
+
 # 50b/50c ("honeycomb collimator 1/2") share Guide_50a's 1003 mm span in the
 # ToO, but it gives them no width/height/m-index - matches this project's own
 # changelog note that the honeycomb collimators have "not correct parameters
 # for now". They need a dedicated collimator component, not Guide_gravity;
 # not added here.
+
+slit_MC = Slit(
+    name="slitMC",
+    xwidth=0.0205,
+    yheight=0.0345,
+    z1=163.105,
+)
+slit_MC.AT = [0, 0, slit_MC.z1 - arm_mc.z1]
+slit_MC.RELATIVE = "Arm_MC"
+
+sample_pos = Arm(
+    name="Sample_pos",
+    z1=163.800,
+)
+sample_pos.AT = [0, 0, sample_pos.z1 - arm_mc.z1]
+sample_pos.RELATIVE = "Arm_MC"
 
 # =============================================================================
 # Straight guides (post-curve)
@@ -416,4 +433,6 @@ guides_straight_2 = [
 
 guides_straight_3 = [
     guide_50a,
+    slit_MC,
+    sample_pos,
 ]
