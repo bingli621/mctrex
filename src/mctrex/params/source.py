@@ -1,4 +1,4 @@
-from mctrex.mcstas_components import ESS_butterfly, Progress_bar
+from mctrex.mcstas_components import ESS_butterfly, Masked_ESS_butterfly, Progress_bar
 
 # =============================================================================
 # ORIGIN
@@ -23,4 +23,29 @@ source = ESS_butterfly(
     focus_xw=0.095,  # [m], size of focusing rectangle
     focus_yh=0.035,
     n_pulses=1,
+)
+
+# =============================================================================
+# MASKED ESS SOURCE
+# =============================================================================
+
+masked_source = Masked_ESS_butterfly(
+    name="source",
+    sector='"W"',
+    beamline=7,
+    acc_power=2,  # [MW]
+    yheight=0.03,  # [m], moderator height, 0.03 to 0.06
+    cold_frac=0.3,
+    dist=2,  # [m], distance to focusing rectangle
+    focus_xw=0.095,  # [m], size of focusing rectangle
+    focus_yh=0.035,
+    n_pulses=1,
+    choppers="train_as_doubles",  # DECLAREd `double *` to the chopper_parameters train
+    chopper_count=6,
+    inverse_velocity_bin=1e-5,  # [s/m]
+    time_bin=1e-4,  # [s]
+    filename='"source"',
+    noise_fraction=0,
+    mask_grow=1,
+    use_mask=1,
 )

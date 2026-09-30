@@ -1,0 +1,302 @@
+/*******************************************************************************
+* Instrument: straight_trex
+*
+* %I
+* Written by: Gregory Tucker
+* Date: 2026
+* Origin: European Spallation Source ERIC
+*******************************************************************************/
+DEFINE INSTRUMENT straight_trex(
+  lambda_min = 1.0,
+  lambda_max = 5.0,
+  lambda_0 = 3.0,
+  t_0/"sec" = 0.0017,
+  chopper1speed/"Hz" = 14.,
+  chopper2speed/"Hz" = 14.,
+  chopper3speed/"Hz" = 105.,
+  chopper4speed/"Hz" = -105.,
+  chopper5speed/"Hz" = 140.,
+  chopper6speed/"Hz" = -140.,
+  chopper1delay/"msec" = 0.,
+  chopper2delay/"msec" = 0.,
+  chopper3delay/"msec" = 0.,
+  chopper4delay/"msec" = 0.,
+  chopper5delay/"msec" = 0.,
+  chopper6delay/"msec" = 0.,
+  disc_radius/"m" = 0.35,
+  slit_width/"m" = 0.06,
+  slit_height/"m" = 0.08,
+  iv_bin = 1e-5,
+  t_bin = 1e-4,
+  noise = 0,
+  int nL = 256,
+  int nt = 256,
+  int growth = 1,
+  int do_mask = 1,
+  int set_delays = 1
+)
+
+DECLARE
+%{
+chopper_parameters * train;  /* the two discs, as chopper-lib describes them */
+double * train_as_doubles;   /* the same pointer, where a component can take it */
+double chopper1edges[2];        
+double chopper2edges[2];        
+double chopper3edges[8];        
+double chopper4edges[8];        
+double chopper5edges[4];        
+double chopper6edges[4];        
+double t_frame;              /* the emission window the source samples, seconds */
+char image_axes[256];        /* Monitor_nD reads its axes, and their limits, from text */
+
+double chopper1path;
+double chopper2path;
+double chopper3path;
+double chopper4path;
+double chopper5path;
+double chopper6path;
+
+%}
+
+/* Carried from the moderator to the far monitor, so what the discs pass is drawn against
+ * the time the ray left rather than the time it arrived. Without it the second image is
+ * the first one sheared by the flight time, and the two cannot be compared. */
+USERVARS
+%{
+double t_emit;
+%}
+
+INITIALIZE
+%{
+/* An edge at angle a reaches the beam at `delay + (beam - a) / (360 nu)`, so the pair
+ * {-w/2, +w/2} straddles `delay` whichever way the disc turns. That is what makes
+ * `delay` the centre of the window rather than one of its ends. */
+chopper1edges[0]=-30.7;
+chopper1edges[1]=30.7;
+
+chopper2edges[0]=-31.65;
+chopper2edges[1]=31.65;
+
+chopper3edges[0]=-10;
+chopper3edges[1]=10;
+chopper3edges[2]=360-252.5;
+chopper3edges[3]=360-217.7;
+chopper3edges[4]=360-190;
+chopper3edges[5]=360-170;
+chopper3edges[6]=360-72.5;
+chopper3edges[7]=360-37.5;
+
+chopper4edges[0]=-10;
+chopper4edges[1]=10;
+chopper4edges[2]=360-252.5;
+chopper4edges[3]=360-217.7;
+chopper4edges[4]=360-190;
+chopper4edges[5]=360-170;
+chopper4edges[6]=360-72.5;
+chopper4edges[7]=360-37.5;
+
+chopper5edges[0]=-1.25;
+chopper5edges[1]=1.25;
+chopper5edges[2]=360-177.15;
+chopper5edges[3]=360-172.85;
+
+chopper6edges[0]=-1.25;
+chopper6edges[1]=1.25;
+chopper6edges[2]=360-177.15;
+chopper6edges[3]=360-172.85;
+
+chopper1path = 31.964;
+chopper2path = 39.987;
+chopper3path = 107.95;
+chopper4path = 108.05;
+chopper5path = 161.995;
+chopper6path = 162.005;
+
+
+/* Set both discs for the same ray: the one leaving the moderator at `t_0` with
+ * wavelength `lambda_0`. It reaches a disc `path` metres away at `t_0 + path * iv`, so
+ * that is when the disc has to be open. Both stripes then run through (lambda_0, t_0),
+ * and the ribbon is centred there. */
+
+double ei_0 = 15.0;
+double iv_0 = 1 / (sqrt(ei_0) * SE2V);
+if (set_delays) {
+chopper1delay = t_0 + chopper1path * iv_0;
+chopper2delay = t_0 + chopper2path * iv_0;
+chopper3delay = t_0 + chopper3path * iv_0;
+chopper4delay = t_0 + chopper4path * iv_0;
+chopper5delay = t_0 + chopper5path * iv_0;
+chopper6delay = t_0 + chopper6path * iv_0;
+}
+
+
+train = (chopper_parameters *) calloc(6, sizeof(chopper_parameters));
+if (train == NULL) {
+    printf("straight_trex: out of memory building the train\n");
+    exit(-1);
+}
+/* How wide the beam is on each disc, as the disc sees it: the angle its window subtends
+ * about the spindle, which is what chopper-lib needs to widen its windows in time and
+ * leave the wavelengths alone.
+ *
+ * The window is `slit_width` across and `slit_height` deep, and it is the inner corners
+ * that stand furthest round the disc -- the same width is a larger angle the closer to the
+ * spindle it is. NXdisk_chopper hangs the openings from the rim's height at the edge of
+ * the window, `sqrt(radius^2 - (xwidth/2)^2)`, so those corners are `slit_height` inside
+ * that.
+ */
+double disc_reach = sqrt(disc_radius * disc_radius - slit_width * slit_width / 4.0);
+double aperture = 2 * RAD2DEG * atan2(slit_width / 2.0, disc_reach - slit_height);
+
+train[0] = (chopper_parameters){chopper1speed, chopper1delay, 0.0, 2, chopper1edges, chopper1path, aperture};
+train[1] = (chopper_parameters){chopper2speed, chopper2delay, 0.0, 2, chopper2edges, chopper2path, aperture};
+train[2] = (chopper_parameters){chopper3speed, chopper3delay, 0.0, 8, chopper3edges, chopper3path, aperture};
+train[3] = (chopper_parameters){chopper4speed, chopper4delay, 0.0, 8, chopper4edges, chopper4path, aperture};
+train[4] = (chopper_parameters){chopper5speed, chopper5delay, 0.0, 4, chopper5edges, chopper5path, aperture};
+train[5] = (chopper_parameters){chopper6speed, chopper6delay, 0.0, 4, chopper6edges, chopper6path, aperture};
+
+/* The cast the component documents. A McCode SETTING PARAMETER carries only `double *`,
+ * so the train travels as one and is read back as a `chopper_parameters *` at the far
+ * end. Done here rather than in the parameter list, which has no syntax for a cast. */
+train_as_doubles = (double *) train;
+
+/* What the source samples, and so what the images have to span: ESS_butterfly draws its
+ * emission time from [0, tmax_multiplier * ESS_SOURCE_DURATION), and the component builds
+ * its mask over the same range. Both are left at their defaults here, so this is that
+ * range written out. */
+t_frame = 3 * 2.857e-3;
+
+/* Both monitors read this one string, so the two images land on identical axes and can be
+ * subtracted. Wavelength first, so it is the horizontal one. */
+sprintf(image_axes,
+        "lambda limits=[%g %g] bins=%d, user1 limits=[%g %g] bins=%d",
+        lambda_min, lambda_max, nL, 0.0, t_frame, nt);
+
+%}
+
+TRACE
+
+COMPONENT origin = Progress_bar()
+AT (0, 0, 0) ABSOLUTE
+
+/* The source under test. Its INITIALIZE builds the mask from the train and its TRACE
+ * applies it; `filename` names the two files it writes the mask and the sampling to. */
+COMPONENT source = Masked_ESS_butterfly(
+  sector = "N", beamline = 1, Lmin = lambda_min, Lmax = lambda_max,
+  yheight = 0.03, cold_frac = 0.5, dist = chopper6path, focus_xw = slit_width, focus_yh = slit_height,
+  acc_power = 2.0, n_pulses = 1,
+  choppers = train_as_doubles, chopper_count = 6,
+  inverse_velocity_bin = iv_bin, time_bin = t_bin,
+  filename = "source", noise_fraction = noise, mask_grow=growth, use_mask=do_mask
+) AT (0, 0, 0) ABSOLUTE
+EXTEND
+%{
+  t_emit = t;
+%}
+
+/* Half a metre downstream, and not closer: the butterfly's emission surface has depth --
+ * the cold wings stand behind the thermal face -- so a monitor at the nominal moderator
+ * plane sits inside it and half the rays would have to travel backwards to reach it,
+ * which McCode will not do. At half a metre every ray has been emitted. Nothing about
+ * the picture depends on the distance, since the axes are the wavelength and the emission
+ * time the ray carries, not where or when it crossed this plane.
+ *
+ * The window is wide enough to take the whole butterfly, since where a ray crosses is of
+ * no interest here -- only when it left and how fast it is going. */
+COMPONENT emission = Monitor_nD(
+  xwidth = 1.0, yheight = 1.0,
+  user1 = "t_emit", username1 = "Emission time [s]",
+  options = image_axes, filename = "emission", restore_neutron = 1
+) AT (0, 0, 0.5) RELATIVE source
+
+
+// COMPONENT near_slit = Slit(xwidth=slit_width, yheight=slit_height) AT (0, 0, chopper1path-0.01) RELATIVE source
+
+COMPONENT chopper1 = NXdisk_chopper(
+  slit_edges = chopper1edges, n_edges = 2,
+  radius = disc_radius, yheight = slit_height, xwidth = slit_width,
+  nu = chopper1speed, delay = chopper1delay, beam_angle = 0, zero_angle = 0,
+  abs_out = 0, verbose = 1
+) AT (0, 0, chopper1path) RELATIVE source
+
+COMPONENT transmitted1 = Monitor_nD(
+  xwidth = 1.0, yheight = 1.0,
+  user1 = "t_emit", username1 = "Emission time [s]",
+  options = image_axes, filename = "transmitted1", restore_neutron = 1
+) AT (0, 0, chopper1path + 0.01) RELATIVE source
+
+COMPONENT chopper2 = NXdisk_chopper(
+  slit_edges = chopper2edges, n_edges = 2,
+  radius = disc_radius, yheight = slit_height, xwidth = slit_width,
+  nu = chopper2speed, delay = chopper2delay, beam_angle = 0, zero_angle = 0,
+  abs_out = 0, verbose = 1
+) AT (0, 0, chopper2path) RELATIVE source
+
+COMPONENT transmitted2 = Monitor_nD(
+  xwidth = 1.0, yheight = 1.0,
+  user1 = "t_emit", username1 = "Emission time [s]",
+  options = image_axes, filename = "transmitted2", restore_neutron = 1
+) AT (0, 0, chopper2path + 0.01) RELATIVE source
+
+COMPONENT chopper3 = NXdisk_chopper(
+  slit_edges = chopper3edges, n_edges = 8,
+  radius = disc_radius, yheight = slit_height, xwidth = slit_width,
+  nu = chopper3speed, delay = chopper3delay, beam_angle = 0, zero_angle = 0,
+  abs_out = 0, verbose = 1
+) AT (0, 0, chopper3path) RELATIVE source
+
+COMPONENT transmitted3 = Monitor_nD(
+  xwidth = 1.0, yheight = 1.0,
+  user1 = "t_emit", username1 = "Emission time [s]",
+  options = image_axes, filename = "transmitted3", restore_neutron = 1
+) AT (0, 0, chopper3path + 0.01) RELATIVE source
+
+COMPONENT chopper4 = NXdisk_chopper(
+  slit_edges = chopper4edges, n_edges = 8,
+  radius = disc_radius, yheight = slit_height, xwidth = slit_width,
+  nu = chopper4speed, delay = chopper4delay, beam_angle = 0, zero_angle = 0,
+  abs_out = 0, verbose = 1
+) AT (0, 0, chopper4path) RELATIVE source
+
+COMPONENT transmitted4 = Monitor_nD(
+  xwidth = 1.0, yheight = 1.0,
+  user1 = "t_emit", username1 = "Emission time [s]",
+  options = image_axes, filename = "transmitted4", restore_neutron = 1
+) AT (0, 0, chopper4path + 0.01) RELATIVE source
+
+COMPONENT chopper5 = NXdisk_chopper(
+  slit_edges = chopper5edges, n_edges = 4,
+  radius = disc_radius, yheight = slit_height, xwidth = slit_width,
+  nu = chopper5speed, delay = chopper5delay, beam_angle = 0, zero_angle = 0,
+  abs_out = 0, verbose = 1
+) AT (0, 0, chopper5path) RELATIVE source
+
+COMPONENT transmitted5 = Monitor_nD(
+  xwidth = 1.0, yheight = 1.0,
+  user1 = "t_emit", username1 = "Emission time [s]",
+  options = image_axes, filename = "transmitted5", restore_neutron = 1
+) AT (0, 0, chopper5path + 0.01) RELATIVE source
+
+// COMPONENT far_slit = Slit(xwidth=slit_width, yheight=slit_height) AT (0, 0, chopper6path-0.001) RELATIVE source
+
+COMPONENT chopper6 = NXdisk_chopper(
+  slit_edges = chopper6edges, n_edges = 4,
+  radius = disc_radius, yheight = slit_height, xwidth = slit_width,
+  nu = chopper6speed, delay = chopper6delay, beam_angle = 0, zero_angle = 0,
+  abs_out = 0, verbose = 1
+) AT (0, 0, chopper6path) RELATIVE source
+
+/* What survived all discs, against emission time still. */
+COMPONENT transmitted6 = Monitor_nD(
+  xwidth = 1.0, yheight = 1.0,
+  user1 = "t_emit", username1 = "Emission time [s]",
+  options = image_axes, filename = "transmitted6", restore_neutron = 1
+) AT (0, 0, chopper6path + 0.01) RELATIVE source
+
+
+FINALLY
+%{
+if (train) free(train);
+%}
+
+END

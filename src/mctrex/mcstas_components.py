@@ -3,7 +3,7 @@ Dataclass wrappers for McStasScript components.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -19,7 +19,9 @@ def add_components_to(instrument, component_dict):
             instrument.append_declare(
                 f"double slit_edges_{component.name}[{size}] = {{{values}}};"
             )
-            component.slit_edges = f"slit_edges_{component.name}"
+            # add a copy that names the array, so the caller's component keeps its
+            # values and the cell can be run again against a fresh instrument
+            component = replace(component, slit_edges=f"slit_edges_{component.name}")
 
         component.add_to(instrument)
     return instrument
@@ -88,6 +90,50 @@ class ESS_butterfly(McStasComponent):
     n_pulses: float = 1
     Lmin: float = 0.1  # [Angstrom]
     Lmax: float = 10.0  # [Angstrom]
+
+
+@dataclass(kw_only=True)
+class Masked_ESS_butterfly(ESS_butterfly):
+    """ESS butterfly moderator whose INITIALIZE builds a mask from the chopper train, applied in TRACE."""
+
+    # DECLAREd `double *` holding the chopper_parameters array, passed by name
+    choppers: str
+    chopper_count: int
+    inverse_velocity_bin: float
+    time_bin: float
+    filename: str  # quoted stem of the two files the mask and sampling are written to
+    noise_fraction: Any = 0  # fraction of rays sampled outside the mask
+    mask_grow: int = 1  # widen the mask by this many bins in each direction
+    use_mask: int = 1  # 0 disables the mask
+    resample: int = 0  # 1 redraws excluded rays from inside the mask instead of absorbing them
+
+    def add_to(self, instrument, **extra_params):
+        """McStasScript does not follow INHERIT, so give the class ESS_butterfly's parameters first."""
+        name = type(self).__name__
+        if name not in instrument.component_class_lib:
+            reader = instrument.component_reader
+            parent = reader.read_name("ESS_butterfly")
+            child = reader.read_name(name)
+            # a `double * choppers` setting is read as a parameter named "*choppers"
+            for i, par in enumerate(child.parameter_names):
+                if par.startswith("*"):
+                    bare = par.lstrip("*")
+                    child.parameter_names[i] = bare
+                    for table in ("defaults", "types", "units", "comments"):
+                        values = getattr(child, f"parameter_{table}")
+                        if par in values:
+                            values[bare] = values.pop(par)
+            for par in parent.parameter_names:
+                if par not in child.parameter_names:
+                    child.parameter_names.append(par)
+                    for table in ("defaults", "types", "units", "comments"):
+                        source = getattr(parent, f"parameter_{table}")
+                        if par in source:
+                            getattr(child, f"parameter_{table}")[par] = source[par]
+            # the class is built from what the reader returns, so hand it the merged one
+            original = reader.read_name
+            reader.read_name = lambda n: child if n == name else original(n)
+        return super().add_to(instrument, **extra_params)
 
 
 @dataclass(kw_only=True)
