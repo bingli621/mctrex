@@ -42,10 +42,10 @@ masked_source = Masked_ESS_butterfly(
     n_pulses=1,
     choppers="train_as_doubles",  # DECLAREd `double *` to the chopper_parameters train
     chopper_count=6,
-    inverse_velocity_bin=1e-5,  # [s/m]
-    time_bin=1e-4,  # [s]
+    inverse_velocity_bin=1e-6,  # [s/m]
+    time_bin=1e-5,  # [s]
     filename='"source"',
     noise_fraction=0,
-    mask_grow=1,
+    mask_grow=5,  # number of bins
     use_mask=1,
 )

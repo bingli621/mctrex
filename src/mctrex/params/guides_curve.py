@@ -190,9 +190,8 @@ guide_13a = Guide_gravity(
 )
 chain_guide_curve(guide_13a, guide_12)
 
-# BWC1 Gap: 30 mm slot for BW_Chopper_1 (bw1 in choppers.py, which places
-# itself at this gap's midpoint) - a branch off Guide_13A, same pattern as
-# arm_bm1; Guide_13B below still chains directly off Guide_13A.
+# BWC1 Gap: 30 mm slot for BW_Chopper_1
+
 arm_bwc1 = Arm(
     name="Arm_BWC1",
     l=0.030000,
