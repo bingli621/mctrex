@@ -93,19 +93,8 @@ class ESS_butterfly(McStasComponent):
 
 
 @dataclass(kw_only=True)
-class Masked_ESS_butterfly(ESS_butterfly):
-    """ESS butterfly moderator whose INITIALIZE builds a mask from the chopper train, applied in TRACE."""
-
-    # DECLAREd `double *` holding the chopper_parameters array, passed by name
-    choppers: str
-    chopper_count: int
-    inverse_velocity_bin: float
-    time_bin: float
-    filename: str  # quoted stem of the two files the mask and sampling are written to
-    noise_fraction: Any = 0  # fraction of rays sampled outside the mask
-    mask_grow: int = 1  # widen the mask by this many bins in each direction
-    use_mask: int = 1  # 0 disables the mask
-    resample: int = 0  # 1 redraws excluded rays from inside the mask instead of absorbing them
+class _Inheriting_ESS_butterfly(ESS_butterfly):
+    """Base for components that INHERIT ESS_butterfly, which McStasScript does not follow."""
 
     def add_to(self, instrument, **extra_params):
         """McStasScript does not follow INHERIT, so give the class ESS_butterfly's parameters first."""
@@ -134,6 +123,38 @@ class Masked_ESS_butterfly(ESS_butterfly):
             original = reader.read_name
             reader.read_name = lambda n: child if n == name else original(n)
         return super().add_to(instrument, **extra_params)
+
+
+@dataclass(kw_only=True)
+class Masked_ESS_butterfly(_Inheriting_ESS_butterfly):
+    """ESS butterfly moderator whose INITIALIZE builds a mask from the chopper train, applied in TRACE."""
+
+    # DECLAREd `double *` holding the chopper_parameters array, passed by name
+    choppers: str
+    chopper_count: int
+    inverse_velocity_bin: float
+    time_bin: float
+    filename: str  # quoted stem of the two files the mask and sampling are written to
+    noise_fraction: Any = 0  # fraction of rays sampled outside the mask
+    mask_grow: int = 1  # widen the mask by this many bins in each direction
+    use_mask: int = 1  # 0 disables the mask
+    resample: int = 0  # 1 redraws excluded rays from inside the mask instead of absorbing them
+
+
+@dataclass(kw_only=True)
+class Polygon_ESS_butterfly(_Inheriting_ESS_butterfly):
+    """ESS butterfly moderator that emits only inside the exact region the chopper train transmits, as polygons."""
+
+    # DECLAREd `double *` holding the chopper_parameters array, passed by name
+    choppers: str
+    chopper_count: int
+    filename: str  # quoted stem of the json file the region is written to
+    path_spread_fraction: float = 0  # extra flight path, as a fraction of each disc's own path
+    noise_fraction: Any = 0  # fraction of rays sampled outside the region
+    use_region: int = 1  # 0 disables the region
+    resample: int = 0  # 1 draws (1/v, t) from inside the region instead of absorbing excluded rays
+    save_polygons: int = 1
+    verify_acceptance: int = 1
 
 
 @dataclass(kw_only=True)

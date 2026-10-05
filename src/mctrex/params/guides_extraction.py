@@ -31,10 +31,11 @@ from mctrex.mcstas_components import (
 
 _width_entrance, _width_exit = 0.089955, 0.060256  # [m]
 _z_entrance, _z_exit = 1.89593, 5.88165  # [m]
+_fixed_wall_at = -0.047  # [m]
+
 _taper_angle = np.degrees(
     np.arctan((_width_entrance - _width_exit) / (_z_exit - _z_entrance) / 2)
 )
-_fixed_wall_at = -0.047  # [m]
 _x_entrance = _width_entrance * np.cos(np.radians(_taper_angle)) / 2 + _fixed_wall_at
 
 arm_NBOA = Arm(name="arm_NBOA", z1=_z_entrance, z2=_z_exit)
